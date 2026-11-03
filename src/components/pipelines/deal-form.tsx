@@ -38,6 +38,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
+import { DealProducts, lineItemsTotal, type DealLineItem } from "./deal-products";
 
 interface DealFormProps {
   open: boolean;
@@ -70,6 +71,7 @@ export function DealForm({
   const [assignedTo, setAssignedTo] = useState("");
   const [expectedCloseDate, setExpectedCloseDate] = useState("");
   const [notes, setNotes] = useState("");
+  const [lineItems, setLineItems] = useState<DealLineItem[]>([]);
 
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [contactSearch, setContactSearch] = useState("");
@@ -114,8 +116,63 @@ export function DealForm({
       setExpectedCloseDate("");
       setNotes("");
     }
+    setLineItems([]);
   }, [open, deal, defaultStageId, stages, defaultCurrency]);
   /* eslint-enable react-hooks/set-state-in-effect */
+
+  // Products already attached to the deal being edited.
+  useEffect(() => {
+    if (!open || !deal) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("deal_products")
+        .select("product_id, quantity, unit_price, products(title, image_url)")
+        .eq("deal_id", deal.id)
+        .order("created_at");
+      if (cancelled || !data) return;
+      setLineItems(
+        data.map((row) => {
+          const product = (Array.isArray(row.products) ? row.products[0] : row.products) as
+            | { title: string; image_url: string | null }
+            | null;
+          return {
+            product_id: row.product_id as string,
+            title: product?.title ?? "",
+            image_url: product?.image_url ?? null,
+            quantity: row.quantity as number,
+            unit_price: Number(row.unit_price),
+          };
+        }),
+      );
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, deal, supabase]);
+
+  // Attached products drive the deal value; the field stays editable.
+  function handleLineItemsChange(next: DealLineItem[]) {
+    setLineItems(next);
+    if (next.length > 0) setValue(String(lineItemsTotal(next)));
+  }
+
+  /** Replace the deal's product rows with the current line items. */
+  async function saveLineItems(dealId: string): Promise<boolean> {
+    const { error: delErr } = await supabase.from("deal_products").delete().eq("deal_id", dealId);
+    if (delErr) return false;
+    if (lineItems.length === 0) return true;
+    const { error: insErr } = await supabase.from("deal_products").insert(
+      lineItems.map((i) => ({
+        account_id: accountId,
+        deal_id: dealId,
+        product_id: i.product_id,
+        quantity: i.quantity,
+        unit_price: i.unit_price,
+      })),
+    );
+    return !insErr;
+  }
 
   // Load supporting data once the sheet is open
   useEffect(() => {
@@ -211,6 +268,7 @@ export function DealForm({
         setSaving(false);
         return;
       }
+      if (!(await saveLineItems(deal.id))) toast.error(t("toastFailedProducts"));
     } else {
       const {
         data: { session },
@@ -226,14 +284,17 @@ export function DealForm({
         setSaving(false);
         return;
       }
-      const { error } = await supabase
+      const { data: created, error } = await supabase
         .from("deals")
-        .insert({ ...payload, user_id: user.id, account_id: accountId, status: "open" });
-      if (error) {
+        .insert({ ...payload, user_id: user.id, account_id: accountId, status: "open" })
+        .select("id")
+        .single();
+      if (error || !created) {
         toast.error(t("toastFailedCreate"));
         setSaving(false);
         return;
       }
+      if (!(await saveLineItems(created.id as string))) toast.error(t("toastFailedProducts"));
     }
 
     setSaving(false);
@@ -336,6 +397,12 @@ export function DealForm({
                 </Link>
               )}
             </div>
+
+            <DealProducts
+              items={lineItems}
+              onChange={handleLineItemsChange}
+              currency={currency}
+            />
 
             <div className="grid grid-cols-[1fr_110px] gap-3">
               <div className="grid gap-2">

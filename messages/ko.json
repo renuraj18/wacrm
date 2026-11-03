@@ -41,7 +41,8 @@
     "defaultAvatar": "아바타",
     "menuProfile": "프로필",
     "menuSettings": "설정",
-    "menuSignOut": "로그아웃"
+    "menuSignOut": "로그아웃",
+    "products": "Products"
   },
   "Header": {
     "dashboard": "대시보드",
@@ -437,7 +438,13 @@
         "document": "문서",
         "audio": "오디오"
       },
-      "uploadFailed": "업로드에 실패했습니다."
+      "uploadFailed": "업로드에 실패했습니다.",
+      "products": "Products",
+      "productsSearch": "Search products…",
+      "productsNoMatch": "No products match your search.",
+      "productsEmpty": "No products yet. Connect Shopify in Settings.",
+      "productInStock": "In stock",
+      "productOutOfStock": "Out of stock"
     },
     "bubble": {
       "photo": "사진",
@@ -788,7 +795,8 @@
     "card": {
       "noContact": "연락처 없음",
       "won": "성사",
-      "lost": "실패"
+      "lost": "실패",
+      "productCount": "{count, plural, =1 {1 product} other {# products}}"
     },
     "form": {
       "editDeal": "딜 수정",
@@ -831,7 +839,15 @@
       "toastMarkedLost": "실패로 표시했습니다",
       "toastReopened": "딜이 재개되었습니다",
       "toastFailedDelete": "딜을 삭제하지 못했습니다",
-      "toastDeleted": "딜이 삭제되었습니다"
+      "toastDeleted": "딜이 삭제되었습니다",
+      "products": "Products",
+      "addProduct": "Add a product…",
+      "decreaseQuantity": "Decrease quantity",
+      "increaseQuantity": "Increase quantity",
+      "unitPrice": "Unit price",
+      "removeProduct": "Remove product",
+      "productsTotal": "Products total: {total}",
+      "toastFailedProducts": "Deal saved, but its products could not be saved"
     },
     "settings": {
       "managePipeline": "파이프라인 관리",
@@ -1969,7 +1985,8 @@
       "deals": "딜 & 통화",
       "inbox": "인박스",
       "members": "팀원",
-      "api": "API 키"
+      "api": "API 키",
+      "shopify": "Shopify"
     },
     "groups": {
       "account": "계정",
@@ -2206,7 +2223,8 @@
       "reindexTooltip": "모든 문서를 다시 임베딩합니다 (예: 임베딩 키 추가 후)",
       "editDoc": "수정",
       "deleteDoc": "삭제",
-      "loading": "불러오는 중…"
+      "loading": "불러오는 중…",
+      "shopifyProducts": "{count, plural, =1 {1 Shopify product is} other {# Shopify products are}} also in the knowledge base. Manage them in Settings → Shopify."
     },
     "quickReplies": {
       "nameRequired": "빠른 답장의 이름을 입력하세요.",
@@ -2227,6 +2245,51 @@
       "textPlaceholder": "삽입할 메시지 텍스트",
       "cancel": "취소",
       "save": "저장"
+    },
+    "shopify": {
+      "title": "Shopify",
+      "description": "Pull your Shopify products into the CRM to send them in chats, attach them to deals and let the AI answer product questions.",
+      "loadFailed": "Failed to load the Shopify connection",
+      "networkError": "Network error. Check your connection and try again.",
+      "syncFailed": "Sync failed: {error}",
+      "syncDone": "Sync complete: {count, plural, =1 {1 product} other {# products}}",
+      "saveFailed": "Failed to save",
+      "connected": "Connected to {name}. Importing products…",
+      "webhookWarning": "Connected, but live updates could not be set up: {error}. Use Sync now to refresh products.",
+      "syncStartFailed": "Could not start the sync",
+      "syncStarted": "Syncing products…",
+      "aiOn": "The AI will now use your products in answers",
+      "aiOff": "The AI will no longer use your products",
+      "disconnectConfirm": "Disconnect Shopify? Synced products will be removed from the CRM, including products attached to deals. Your Shopify store is not changed.",
+      "disconnectFailed": "Failed to disconnect",
+      "disconnected": "Shopify disconnected",
+      "adminOnly": "Only owners and admins can manage the Shopify connection.",
+      "syncing": "Syncing…",
+      "syncNow": "Sync now",
+      "connectedTo": "Connected to {shop}",
+      "productCount": "{count, plural, =1 {1 product} other {# products}}",
+      "liveUpdates": "Live updates on",
+      "noLiveUpdates": "Live updates off",
+      "lastSynced": "Last synced {when}",
+      "neverSynced": "Not synced yet",
+      "lastError": "Last sync error: {error}",
+      "viewProducts": "View products",
+      "shopDomain": "Store address",
+      "shopDomainHint": "Your .myshopify.com address, shown in Shopify admin under Settings → Domains.",
+      "clientId": "Client ID",
+      "clientSecret": "Client secret",
+      "clientSecretSaved": "Saved. Leave it as is to keep it, or enter a new secret to replace it.",
+      "saveChanges": "Save changes",
+      "connect": "Connect Shopify",
+      "disconnect": "Disconnect",
+      "aiToggle": "Use products in AI answers",
+      "aiToggleDesc": "Adds every product’s price, stock and link to the AI knowledge base.",
+      "setupTitle": "How to connect",
+      "step1": "Open the Shopify Dev Dashboard and create an app:",
+      "step2": "In the app’s version settings, add the read_products and read_inventory scopes, then release the version.",
+      "step3": "Install the app on your store (Home → Install app).",
+      "step4": "Copy the Client ID and Client secret from the app’s Settings page.",
+      "step5": "Paste them here with your .myshopify.com address and click Connect Shopify."
     }
   },
   "SignupPage": {
@@ -2933,6 +2996,33 @@
       "submitFailed": "템플릿을 제출하지 못했습니다.",
       "metaApiStatus": "Meta API 오류: {status}",
       "syncFailed": "템플릿을 동기화하지 못했습니다"
+    },
+    "shopify": {
+      "loadFailed": "Failed to load the Shopify connection",
+      "shopDomainInvalid": "Enter your store’s .myshopify.com address, for example my-store.myshopify.com.",
+      "clientIdRequired": "Client ID is required",
+      "clientSecretRequired": "Client secret is required",
+      "shopClaimed": "This Shopify store is already connected to another CRM account.",
+      "saveFailed": "Failed to save the Shopify connection",
+      "notConnected": "Shopify is not connected",
+      "disconnectFailed": "Failed to disconnect Shopify",
+      "productsLoadFailed": "Failed to load products"
     }
+  },
+  "Products": {
+    "title": "Products",
+    "subtitle": "{count, plural, =1 {1 product} other {# products}} from Shopify",
+    "subtitleEmpty": "Your Shopify catalogue",
+    "searchPlaceholder": "Search products…",
+    "typeFilter": "Product type",
+    "allTypes": "All types",
+    "empty": "No products yet. Connect your Shopify store to import them.",
+    "connectShopify": "Connect Shopify",
+    "noMatches": "No products match your search.",
+    "outOfStock": "Out of stock",
+    "stockCount": "{count} in stock",
+    "untracked": "Stock not tracked",
+    "openInStore": "Open in store",
+    "loadMore": "Load more ({shown} of {total})"
   }
 }

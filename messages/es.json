@@ -41,7 +41,8 @@
     "defaultAvatar": "Avatar",
     "menuProfile": "Perfil",
     "menuSettings": "Configuración",
-    "menuSignOut": "Cerrar sesión"
+    "menuSignOut": "Cerrar sesión",
+    "products": "Products"
   },
   "Header": {
     "dashboard": "Panel",
@@ -437,7 +438,13 @@
         "document": "documento",
         "audio": "audio"
       },
-      "uploadFailed": "Falló la carga."
+      "uploadFailed": "Falló la carga.",
+      "products": "Products",
+      "productsSearch": "Search products…",
+      "productsNoMatch": "No products match your search.",
+      "productsEmpty": "No products yet. Connect Shopify in Settings.",
+      "productInStock": "In stock",
+      "productOutOfStock": "Out of stock"
     },
     "bubble": {
       "photo": "Foto",
@@ -788,7 +795,8 @@
     "card": {
       "noContact": "Sin contacto",
       "won": "Ganado",
-      "lost": "Perdido"
+      "lost": "Perdido",
+      "productCount": "{count, plural, =1 {1 product} other {# products}}"
     },
     "form": {
       "editDeal": "Editar negocio",
@@ -831,7 +839,15 @@
       "toastMarkedLost": "Marcado como perdido",
       "toastReopened": "Negocio reabierto",
       "toastFailedDelete": "Error al eliminar el negocio",
-      "toastDeleted": "Negocio eliminado"
+      "toastDeleted": "Negocio eliminado",
+      "products": "Products",
+      "addProduct": "Add a product…",
+      "decreaseQuantity": "Decrease quantity",
+      "increaseQuantity": "Increase quantity",
+      "unitPrice": "Unit price",
+      "removeProduct": "Remove product",
+      "productsTotal": "Products total: {total}",
+      "toastFailedProducts": "Deal saved, but its products could not be saved"
     },
     "settings": {
       "managePipeline": "Administrar pipeline",
@@ -1969,7 +1985,8 @@
       "deals": "Negocios y moneda",
       "inbox": "Bandeja de entrada",
       "members": "Miembros del equipo",
-      "api": "Claves de API"
+      "api": "Claves de API",
+      "shopify": "Shopify"
     },
     "groups": {
       "account": "Cuenta",
@@ -2206,7 +2223,8 @@
       "reindexTooltip": "Volver a generar los embeddings de todos los documentos (p. ej. después de agregar una clave de embeddings)",
       "editDoc": "Editar",
       "deleteDoc": "Eliminar",
-      "loading": "Cargando…"
+      "loading": "Cargando…",
+      "shopifyProducts": "{count, plural, =1 {1 Shopify product is} other {# Shopify products are}} also in the knowledge base. Manage them in Settings → Shopify."
     },
     "quickReplies": {
       "nameRequired": "Ponle un nombre a la respuesta rápida.",
@@ -2227,6 +2245,51 @@
       "textPlaceholder": "El texto del mensaje que se insertará",
       "cancel": "Cancelar",
       "save": "Guardar"
+    },
+    "shopify": {
+      "title": "Shopify",
+      "description": "Pull your Shopify products into the CRM to send them in chats, attach them to deals and let the AI answer product questions.",
+      "loadFailed": "Failed to load the Shopify connection",
+      "networkError": "Network error. Check your connection and try again.",
+      "syncFailed": "Sync failed: {error}",
+      "syncDone": "Sync complete: {count, plural, =1 {1 product} other {# products}}",
+      "saveFailed": "Failed to save",
+      "connected": "Connected to {name}. Importing products…",
+      "webhookWarning": "Connected, but live updates could not be set up: {error}. Use Sync now to refresh products.",
+      "syncStartFailed": "Could not start the sync",
+      "syncStarted": "Syncing products…",
+      "aiOn": "The AI will now use your products in answers",
+      "aiOff": "The AI will no longer use your products",
+      "disconnectConfirm": "Disconnect Shopify? Synced products will be removed from the CRM, including products attached to deals. Your Shopify store is not changed.",
+      "disconnectFailed": "Failed to disconnect",
+      "disconnected": "Shopify disconnected",
+      "adminOnly": "Only owners and admins can manage the Shopify connection.",
+      "syncing": "Syncing…",
+      "syncNow": "Sync now",
+      "connectedTo": "Connected to {shop}",
+      "productCount": "{count, plural, =1 {1 product} other {# products}}",
+      "liveUpdates": "Live updates on",
+      "noLiveUpdates": "Live updates off",
+      "lastSynced": "Last synced {when}",
+      "neverSynced": "Not synced yet",
+      "lastError": "Last sync error: {error}",
+      "viewProducts": "View products",
+      "shopDomain": "Store address",
+      "shopDomainHint": "Your .myshopify.com address, shown in Shopify admin under Settings → Domains.",
+      "clientId": "Client ID",
+      "clientSecret": "Client secret",
+      "clientSecretSaved": "Saved. Leave it as is to keep it, or enter a new secret to replace it.",
+      "saveChanges": "Save changes",
+      "connect": "Connect Shopify",
+      "disconnect": "Disconnect",
+      "aiToggle": "Use products in AI answers",
+      "aiToggleDesc": "Adds every product’s price, stock and link to the AI knowledge base.",
+      "setupTitle": "How to connect",
+      "step1": "Open the Shopify Dev Dashboard and create an app:",
+      "step2": "In the app’s version settings, add the read_products and read_inventory scopes, then release the version.",
+      "step3": "Install the app on your store (Home → Install app).",
+      "step4": "Copy the Client ID and Client secret from the app’s Settings page.",
+      "step5": "Paste them here with your .myshopify.com address and click Connect Shopify."
     }
   },
   "SignupPage": {
@@ -2933,6 +2996,33 @@
       "submitFailed": "Error al enviar la plantilla.",
       "metaApiStatus": "Error de la API de Meta: {status}",
       "syncFailed": "Error al sincronizar las plantillas"
+    },
+    "shopify": {
+      "loadFailed": "Failed to load the Shopify connection",
+      "shopDomainInvalid": "Enter your store’s .myshopify.com address, for example my-store.myshopify.com.",
+      "clientIdRequired": "Client ID is required",
+      "clientSecretRequired": "Client secret is required",
+      "shopClaimed": "This Shopify store is already connected to another CRM account.",
+      "saveFailed": "Failed to save the Shopify connection",
+      "notConnected": "Shopify is not connected",
+      "disconnectFailed": "Failed to disconnect Shopify",
+      "productsLoadFailed": "Failed to load products"
     }
+  },
+  "Products": {
+    "title": "Products",
+    "subtitle": "{count, plural, =1 {1 product} other {# products}} from Shopify",
+    "subtitleEmpty": "Your Shopify catalogue",
+    "searchPlaceholder": "Search products…",
+    "typeFilter": "Product type",
+    "allTypes": "All types",
+    "empty": "No products yet. Connect your Shopify store to import them.",
+    "connectShopify": "Connect Shopify",
+    "noMatches": "No products match your search.",
+    "outOfStock": "Out of stock",
+    "stockCount": "{count} in stock",
+    "untracked": "Stock not tracked",
+    "openInStore": "Open in store",
+    "loadMore": "Load more ({shown} of {total})"
   }
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import type { Deal, PipelineStage } from "@/types";
-import { Calendar, Check, X } from "lucide-react";
+import { Calendar, Check, ShoppingBag, X } from "lucide-react";
 import { formatCurrency } from "@/lib/currency";
 import { useTranslations } from "next-intl";
 
@@ -30,6 +30,7 @@ export function DealCard({ deal, stage, onEdit, isOverlay }: DealCardProps) {
   const t = useTranslations("Pipelines.card");
   const contactLabel = deal.contact?.name || deal.contact?.phone || t("noContact");
   const assigneeLabel = deal.assignee?.full_name || null;
+  const productCount = deal.deal_products?.[0]?.count ?? 0;
 
   return (
     <button
@@ -81,8 +82,19 @@ export function DealCard({ deal, stage, onEdit, isOverlay }: DealCardProps) {
       </div>
 
       <div className="mt-2 flex items-center justify-between">
-        <span className="text-sm font-bold text-primary">
-          {formatCurrency(deal.value, deal.currency)}
+        <span className="flex items-center gap-1.5">
+          <span className="text-sm font-bold text-primary">
+            {formatCurrency(deal.value, deal.currency)}
+          </span>
+          {productCount > 0 && (
+            <span
+              title={t("productCount", { count: productCount })}
+              className="flex items-center gap-0.5 text-[11px] text-muted-foreground"
+            >
+              <ShoppingBag className="h-3 w-3" />
+              {productCount}
+            </span>
+          )}
         </span>
         {deal.expected_close_date && (
           <span className="flex items-center gap-1 text-[11px] text-muted-foreground">

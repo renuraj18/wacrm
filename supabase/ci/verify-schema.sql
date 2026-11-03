@@ -163,6 +163,19 @@ BEGIN
     RAISE EXCEPTION 'anon can execute dashboard_overview — migration 059 grants are wrong';
   END IF;
 
+  -- Shopify catalogue (060).
+  IF to_regclass('public.shopify_config') IS NULL
+     OR to_regclass('public.products') IS NULL
+     OR to_regclass('public.deal_products') IS NULL THEN
+    RAISE EXCEPTION 'Shopify tables are missing — migration 060 did not apply';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'ai_knowledge_documents' AND column_name = 'source'
+  ) THEN
+    RAISE EXCEPTION 'ai_knowledge_documents.source is missing — migration 060 did not apply';
+  END IF;
+
   RAISE NOTICE 'schema verification passed';
 END
 $$;

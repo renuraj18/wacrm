@@ -22,6 +22,7 @@ import {
   Plus,
   MessageSquareDashed,
   Zap,
+  ShoppingBag,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GatedButton } from "@/components/ui/gated-button";
@@ -55,6 +56,8 @@ import {
 import { validateInteractivePayload } from "@/lib/whatsapp/interactive";
 import type { InteractiveMessagePayload, QuickReply } from "@/types";
 import { QuickReplyPicker } from "./quick-reply-picker";
+import { ProductPicker } from "./product-picker";
+import { productCaption, type ProductListItem } from "@/lib/products/format";
 
 /** Media content types an agent can send from the composer. */
 export type ComposerMediaKind = "image" | "video" | "document" | "audio";
@@ -169,6 +172,7 @@ export function MessageComposer({
     useState<InteractiveMessagePayload>(blankButtonsPayload);
   const [savingQuickReply, setSavingQuickReply] = useState(false);
   const [quickReplyOpen, setQuickReplyOpen] = useState(false);
+  const [productPickerOpen, setProductPickerOpen] = useState(false);
 
   // Media attachment state. `draft` holds an uploaded-but-not-yet-sent
   // attachment; `busy` covers the upload/transcode window.
@@ -368,6 +372,33 @@ export function MessageComposer({
       setSavingQuickReply(false);
     }
   }, [interactivePayload, t]);
+
+  // A picked Shopify product goes out straight away: its photo with a
+  // name / price / stock / link caption, or the caption as plain text
+  // when the product has no image. Meta fetches the Shopify CDN URL
+  // itself, so there is no upload (and nothing to GC — empty path).
+  const handlePickProduct = useCallback(
+    (product: ProductListItem) => {
+      setProductPickerOpen(false);
+      const caption = productCaption(product, {
+        inStock: t("productInStock"),
+        outOfStock: t("productOutOfStock"),
+      });
+      if (product.image_url) {
+        onSendMedia({
+          kind: "image",
+          mediaUrl: product.image_url,
+          path: "",
+          caption,
+          replyToId: replyTo?.id,
+        });
+      } else {
+        onSend(caption, replyTo?.id);
+      }
+      onClearReply?.();
+    },
+    [onSendMedia, onSend, replyTo?.id, onClearReply, t],
+  );
 
   // A picked quick reply: text fills the composer; interactive opens the
   // builder pre-filled so the agent can tweak before sending.
@@ -715,6 +746,10 @@ export function MessageComposer({
                 <Zap className="mr-2 h-4 w-4" />
                 {t("quickReplies")}
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setProductPickerOpen(true)}>
+                <ShoppingBag className="mr-2 h-4 w-4" />
+                {t("products")}
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
@@ -832,6 +867,13 @@ export function MessageComposer({
         open={quickReplyOpen}
         onOpenChange={setQuickReplyOpen}
         onPick={handlePickQuickReply}
+      />
+
+      {/* Shopify product picker. */}
+      <ProductPicker
+        open={productPickerOpen}
+        onOpenChange={setProductPickerOpen}
+        onPick={handlePickProduct}
       />
     </div>
   );

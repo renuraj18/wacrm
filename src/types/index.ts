@@ -411,6 +411,8 @@ export interface Deal {
   contact?: Contact;
   stage?: PipelineStage;
   assignee?: Profile;
+  /** PostgREST aggregate from `deal_products(count)` — Shopify products attached (060). */
+  deal_products?: { count: number }[];
 }
 
 export type BroadcastStatus = 'draft' | 'scheduled' | 'sending' | 'sent' | 'failed';

@@ -41,6 +41,7 @@ export function AiKnowledgeCard({
   const [content, setContent] = useState('');
   const [saving, setSaving] = useState(false);
   const [reindexing, setReindexing] = useState(false);
+  const [productDocs, setProductDocs] = useState(0);
   const loadedAccountIdRef = useRef<string | null>(null);
   const t = useTranslations('Settings.aiKnowledge');
 
@@ -49,8 +50,10 @@ export function AiKnowledgeCard({
     try {
       const res = await fetch('/api/ai/knowledge');
       const data = await res.json();
-      if (res.ok) setDocs(data.documents ?? []);
-      else toast.error(data.error ?? t('loadFailed'));
+      if (res.ok) {
+        setDocs(data.documents ?? []);
+        setProductDocs(data.product_documents ?? 0);
+      } else toast.error(data.error ?? t('loadFailed'));
     } catch {
       toast.error(t('loadFailed'));
     } finally {
@@ -189,6 +192,11 @@ export function AiKnowledgeCard({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        {productDocs > 0 ? (
+          <p className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+            {t('shopifyProducts', { count: productDocs })}
+          </p>
+        ) : null}
         {loading ? (
           <div className="flex items-center py-4 text-sm text-muted-foreground">
             <Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t('loading')}

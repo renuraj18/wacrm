@@ -20,11 +20,22 @@ const t = getT('Api')
 export async function GET() {
   try {
     const { supabase, accountId } = await getCurrentAccount()
-    const { data, error } = await supabase
-      .from('ai_knowledge_documents')
-      .select('id, title, updated_at')
-      .eq('account_id', accountId)
-      .order('updated_at', { ascending: false })
+    // Shopify products are knowledge documents too (source = 'shopify'),
+    // but they are managed by the catalogue sync — list only the
+    // hand-written ones and report the product count separately.
+    const [{ data, error }, { count: productDocCount }] = await Promise.all([
+      supabase
+        .from('ai_knowledge_documents')
+        .select('id, title, updated_at')
+        .eq('account_id', accountId)
+        .eq('source', 'manual')
+        .order('updated_at', { ascending: false }),
+      supabase
+        .from('ai_knowledge_documents')
+        .select('id', { count: 'exact', head: true })
+        .eq('account_id', accountId)
+        .eq('source', 'shopify'),
+    ])
     if (error) {
       console.error('[ai/knowledge GET] error:', error)
       return NextResponse.json(
@@ -32,7 +43,7 @@ export async function GET() {
         { status: 500 },
       )
     }
-    return NextResponse.json({ documents: data ?? [] })
+    return NextResponse.json({ documents: data ?? [], product_documents: productDocCount ?? 0 })
   } catch (err) {
     return toErrorResponse(err)
   }
