@@ -14,6 +14,10 @@ const tablesWithoutDomainData = new Set([
   "account_invitations",
   "member_presence",
   "pending_message_statuses",
+  // A registered phone isn't business data: it must not block joining
+  // an account. It cascades away with the old account and the mobile
+  // app re-registers on its next launch.
+  "push_devices",
 ]);
 
 function accountScopedTables(): Set<string> {

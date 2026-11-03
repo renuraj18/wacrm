@@ -79,8 +79,12 @@ export async function middleware(request: NextRequest) {
     return withRefreshedCookies(NextResponse.redirect(url))
   }
 
-  // API routes that need auth (not webhooks)
-  if (!user && request.nextUrl.pathname.startsWith('/api/whatsapp/') &&
+  // API routes that need auth (not webhooks). Requests carrying a
+  // Supabase access token in `Authorization: Bearer` (the mobile app)
+  // have no cookie session; the route validates that token itself via
+  // createClient() in src/lib/supabase/server.ts, so let them through.
+  const hasBearer = /^Bearer\s+\S+/i.test(request.headers.get('authorization') ?? '')
+  if (!user && !hasBearer && request.nextUrl.pathname.startsWith('/api/whatsapp/') &&
       !request.nextUrl.pathname.includes('/webhook')) {
     return withRefreshedCookies(
       NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

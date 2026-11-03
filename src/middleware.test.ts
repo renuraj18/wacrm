@@ -114,6 +114,29 @@ describe("middleware — refreshed auth cookies survive redirects", () => {
   });
 });
 
+describe("middleware — WhatsApp API guard", () => {
+  it("rejects a signed-out request with no token", async () => {
+    const res = await middleware(new NextRequest("https://app.test/api/whatsapp/send", { method: "POST" }));
+    expect(res.status).toBe(401);
+  });
+
+  it("lets a bearer-token request (mobile app) through to the route", async () => {
+    const res = await middleware(
+      new NextRequest("https://app.test/api/whatsapp/send", {
+        method: "POST",
+        headers: { authorization: "Bearer aaa.bbb.ccc" },
+      }),
+    );
+    // The route validates the token itself; the middleware must not 401 it.
+    expect(res.status).toBe(200);
+  });
+
+  it("still lets the public webhook through without a session", async () => {
+    const res = await middleware(new NextRequest("https://app.test/api/whatsapp/webhook", { method: "POST" }));
+    expect(res.status).toBe(200);
+  });
+});
+
 describe("middleware — every dashboard route requires a session", () => {
   // Read the route group rather than hard-coding a list, so a new page added
   // under src/app/(dashboard)/ fails here until it is added to
