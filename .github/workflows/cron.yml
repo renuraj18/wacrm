@@ -1,0 +1,48 @@
+name: Cron
+
+# Pings the automation and flow cron endpoints so Wait steps and
+# scheduled flows run. Vercel's own cron can't send the x-cron-secret
+# header these routes check, and Hobby plans only allow daily runs.
+#
+# Needs a repository secret AUTOMATION_CRON_SECRET (same value as the
+# Vercel env var) and a repository variable CRM_URL, e.g.
+# https://wacrm-rosy-alpha.vercel.app. GitHub may delay scheduled runs
+# by a few minutes under load, which the engines tolerate.
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+# Never let runs pile up; the endpoints are idempotent per tick.
+concurrency:
+  group: cron
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    name: Drain automations and flows
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping cron endpoints
+        env:
+          CRM_URL: ${{ vars.CRM_URL }}
+          CRON_SECRET: ${{ secrets.AUTOMATION_CRON_SECRET }}
+        run: |
+          if [ -z "$CRM_URL" ] || [ -z "$CRON_SECRET" ]; then
+            echo "::error::Set the CRM_URL variable and AUTOMATION_CRON_SECRET secret in repo settings."
+            exit 1
+          fi
+          status=0
+          for path in /api/automations/cron /api/flows/cron; do
+            code=$(curl -sS -o response.json -w '%{http_code}' \
+              --max-time 120 \
+              -H "x-cron-secret: $CRON_SECRET" \
+              "$CRM_URL$path") || code=000
+            echo "$path -> HTTP $code: $(head -c 300 response.json 2>/dev/null)"
+            case "$code" in
+              2*) ;;
+              *) status=1 ;;
+            esac
+          done
+          exit $status
