@@ -28,7 +28,12 @@ import {
 import { clearProductKnowledge } from '@/lib/shopify/knowledge'
 import { fetchShopInfo } from '@/lib/shopify/products'
 import { loadConnection, syncAllProducts } from '@/lib/shopify/sync'
-import { registerProductWebhooks, removeProductWebhooks } from '@/lib/shopify/webhooks'
+import {
+  registerOrderWebhooks,
+  registerProductWebhooks,
+  removeProductWebhooks,
+  webhookUrlProblem,
+} from '@/lib/shopify/webhooks'
 import { decrypt, encrypt } from '@/lib/whatsapp/encryption'
 
 export const maxDuration = 300
@@ -36,7 +41,7 @@ export const maxDuration = 300
 const t = getT('Api')
 
 const STATUS_COLUMNS =
-  'shop_domain, client_id, storefront_url, currency, ai_products_enabled, webhooks_registered_at, last_synced_at, last_sync_error, product_count, created_at'
+  'shop_domain, client_id, storefront_url, currency, ai_products_enabled, webhooks_registered_at, webhook_error, last_synced_at, last_sync_error, product_count, created_at'
 
 /** Public origin Shopify should deliver webhooks to. */
 function webhookUrl(request: Request): string {
@@ -157,21 +162,36 @@ export async function POST(request: Request) {
 
     // Webhooks: a failure here still leaves a working (manual-sync)
     // connection, so report it rather than failing the save.
-    let webhookError: string | null = null
-    try {
-      await registerProductWebhooks(graphqlClient(shopDomain, token.accessToken), webhookUrl(request))
-      await admin
-        .from('shopify_config')
-        .update({ webhooks_registered_at: new Date().toISOString() })
-        .eq('account_id', accountId)
-    } catch (err) {
-      webhookError = (err as Error).message
-      console.error('[shopify/config POST] webhook registration failed:', err)
-      await admin
-        .from('shopify_config')
-        .update({ webhooks_registered_at: null })
-        .eq('account_id', accountId)
+    const callbackUrl = webhookUrl(request)
+    let webhookError: string | null = webhookUrlProblem(callbackUrl)
+    // Order webhooks need extra scopes (read_orders); without them the
+    // product webhooks still work, so this is reported on its own.
+    let orderWebhookError: string | null = null
+    if (!webhookError) {
+      const gql = graphqlClient(shopDomain, token.accessToken)
+      try {
+        await registerProductWebhooks(gql, callbackUrl)
+      } catch (err) {
+        webhookError = (err as Error).message
+        console.error('[shopify/config POST] webhook registration failed:', err)
+      }
+      if (!webhookError) {
+        try {
+          await registerOrderWebhooks(gql, callbackUrl)
+        } catch (err) {
+          orderWebhookError = `Order notifications are off: ${(err as Error).message} Add the read_orders scope in the Shopify Dev Dashboard, release a new version, then click Save changes.`
+          console.warn('[shopify/config POST] order webhook registration failed:', err)
+        }
+      }
     }
+    // Persist the outcome so Settings keeps showing why live updates are off.
+    await admin
+      .from('shopify_config')
+      .update({
+        webhooks_registered_at: webhookError ? null : new Date().toISOString(),
+        webhook_error: webhookError ?? orderWebhookError,
+      })
+      .eq('account_id', accountId)
 
     after(async () => {
       const conn = await loadConnection(admin, accountId)
@@ -183,7 +203,7 @@ export async function POST(request: Request) {
       }
     })
 
-    return NextResponse.json({ ok: true, shop_name: shopName, webhook_error: webhookError })
+    return NextResponse.json({ ok: true, shop_name: shopName, webhook_error: webhookError ?? orderWebhookError })
   } catch (err) {
     return toErrorResponse(err)
   }

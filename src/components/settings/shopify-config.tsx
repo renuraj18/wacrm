@@ -32,6 +32,7 @@ interface ShopifyStatus {
   currency: string | null;
   ai_products_enabled: boolean;
   webhooks_registered_at: string | null;
+  webhook_error: string | null;
   last_synced_at: string | null;
   last_sync_error: string | null;
   product_count: number;
@@ -272,6 +273,13 @@ export function ShopifyConfig() {
             </p>
             {config.last_sync_error ? (
               <p className="text-xs text-destructive">{t('lastError', { error: config.last_sync_error })}</p>
+            ) : null}
+            {config.webhook_error ? (
+              <p className="text-xs text-destructive">
+                {config.webhooks_registered_at
+                  ? config.webhook_error
+                  : t('liveUpdatesError', { error: config.webhook_error })}
+              </p>
             ) : null}
             <div className="flex flex-wrap gap-3 pt-1 text-sm">
               <Link href="/products" className="inline-flex items-center gap-1 text-primary hover:underline">

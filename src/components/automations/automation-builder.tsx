@@ -27,6 +27,7 @@ import {
   GitBranch,
   Webhook,
   CircleSlash,
+  PackageSearch,
   Zap,
   Loader2,
   ArrowDown,
@@ -134,6 +135,7 @@ const STEP_META: Record<AutomationStepType, StepMeta> = {
   condition: { label: "condition", icon: GitBranch, border: "border-l-amber-500" },
   send_webhook: { label: "send_webhook", icon: Webhook, border: "border-l-primary" },
   close_conversation: { label: "close_conversation", icon: CircleSlash, border: "border-l-primary" },
+  shopify_order_status: { label: "shopify_order_status", icon: PackageSearch, border: "border-l-primary" },
 }
 
 const ADDABLE_STEPS: AutomationStepType[] = [
@@ -150,6 +152,7 @@ const ADDABLE_STEPS: AutomationStepType[] = [
   "condition",
   "send_webhook",
   "close_conversation",
+  "shopify_order_status",
 ]
 
 const TRIGGER_OPTIONS: { value: AutomationTriggerType }[] = [
@@ -161,6 +164,9 @@ const TRIGGER_OPTIONS: { value: AutomationTriggerType }[] = [
   { value: "conversation_assigned" },
   { value: "tag_added" },
   { value: "time_based" },
+  { value: "shopify_order_created" },
+  { value: "shopify_order_fulfilled" },
+  { value: "shopify_order_cancelled" },
 ]
 
 function cid(): string {
@@ -1590,6 +1596,19 @@ function StepEditor({
           {t("config.closeConversationHint", { defaultValue: "Sets the conversation status to \"closed\". No configuration needed." })}
         </p>
       )
+    case "shopify_order_status":
+      return (
+        <>
+          <p className="text-xs text-muted-foreground">{t("config.shopifyOrderStatusHint")}</p>
+          <FieldBlock label={t("config.failureTagLabel")}>
+            <TagSelect
+              value={(cfg.failure_tag_id as string) ?? ""}
+              onChange={(v) => set({ failure_tag_id: v })}
+              t={t}
+            />
+          </FieldBlock>
+        </>
+      )
     default:
       return null
   }
@@ -1642,6 +1661,8 @@ function previewFor(
       return t("preview.when", { subject: String(step.step_config.subject ?? "?") })
     case "send_webhook":
       return (step.step_config.url as string) || t("preview.noUrl")
+    case "shopify_order_status":
+      return t("preview.shopifyOrderStatus")
     default:
       return ""
   }

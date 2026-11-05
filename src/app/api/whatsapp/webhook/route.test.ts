@@ -43,6 +43,8 @@ const h = vi.hoisted(() => ({
     broadcastRecipient: null as { id: string; status: string } | null,
     /** Patches applied to that broadcast_recipients row. */
     recipientUpdates: [] as Record<string, unknown>[],
+    /** Active interactive_reply automations (trigger_config rows). */
+    interactiveReplyAutomations: [] as { trigger_config: { reply_ids: string[] } }[],
   },
 }))
 
@@ -205,6 +207,16 @@ vi.mock('@supabase/supabase-js', () => ({
               }
             },
           }
+        case 'automations': {
+          // hasInteractiveReplyAutomation: select(...).eq().eq().eq()
+          const chain = {
+            select: () => chain,
+            eq: () => chain,
+            then: (resolve: (v: unknown) => unknown) =>
+              resolve({ data: h.state.interactiveReplyAutomations, error: null }),
+          }
+          return chain
+        }
         default:
           throw new Error(`unexpected table: ${table}`)
       }
@@ -381,6 +393,7 @@ beforeEach(() => {
   h.state.whatsappConfigLookups = []
   h.state.broadcastRecipient = null
   h.state.recipientUpdates = []
+  h.state.interactiveReplyAutomations = []
   mockFindExistingContact.mockResolvedValue({
     id: 'contact-1',
     name: 'Ada',
@@ -499,9 +512,25 @@ describe('inbound webhook: template quick-reply buttons (#478)', () => {
       (call) => (call[0] as { triggerType: string }).triggerType,
     )
     expect(triggers).toContain('interactive_reply')
+    // Nothing answers YES_INTERESTED by id, so keywords still get a look.
+    expect(triggers).toContain('keyword_match')
     // The AI auto-reply must stay out of it — a button tap is not a
     // free-text question.
     expect(h.dispatchInboundToAiReply).not.toHaveBeenCalled()
+  })
+
+  it('skips keyword_match when an interactive_reply automation answers the tap', async () => {
+    // A keyword automation matching the title ("interested") would
+    // otherwise answer the same tap a second time.
+    h.state.interactiveReplyAutomations = [{ trigger_config: { reply_ids: ['YES_INTERESTED'] } }]
+    await runWebhook(templateButtonTap)
+
+    const triggers = h.runAutomationsForTrigger.mock.calls.map(
+      (call) => (call[0] as { triggerType: string }).triggerType,
+    )
+    expect(triggers).toContain('interactive_reply')
+    expect(triggers).toContain('new_message_received')
+    expect(triggers).not.toContain('keyword_match')
   })
 
   it('falls back to the label when the template button carries no payload', async () => {

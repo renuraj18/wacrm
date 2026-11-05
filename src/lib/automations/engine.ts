@@ -12,6 +12,7 @@ import type {
   SendListStepConfig,
   SendTemplateStepConfig,
   SendWebhookStepConfig,
+  ShopifyOrderStatusStepConfig,
   TagStepConfig,
   UpdateContactFieldStepConfig,
   WaitStepConfig,
@@ -26,6 +27,14 @@ import { validateInteractivePayload } from '@/lib/whatsapp/interactive'
 import { isDeliverableUrl } from '@/lib/webhooks/ssrf'
 import { getT } from '@/lib/i18n/translate'
 import { isWithinTimeWindow } from './time-of-day'
+import { connectionGraphql } from '@/lib/shopify/client'
+import { loadConnection } from '@/lib/shopify/sync'
+import {
+  formatOrderReply,
+  formatOrderUnavailable,
+  lookupOrdersForPhone,
+  toE164,
+} from '@/lib/shopify/orders'
 
 /** Step errors land in automation_logs and are shown on the logs page. */
 const tErr = getT('LibErrors.engine')
@@ -793,7 +802,7 @@ async function runStep(step: AutomationStep, args: ExecuteArgs): Promise<string>
               if (bNum) return 1
               return a.localeCompare(b)
             })
-            .map((k) => String(cfg.variables![k]))
+            .map((k) => interpolate(String(cfg.variables![k]), args))
         : []
       const { whatsapp_message_id } = await engineSendTemplate({
         accountId: args.automation.account_id,
@@ -994,6 +1003,63 @@ async function runStep(step: AutomationStep, args: ExecuteArgs): Promise<string>
         .eq('account_id', args.automation.account_id)
         .eq('contact_id', args.contactId)
       return 'conversation closed'
+    }
+
+    case 'shopify_order_status': {
+      const cfg = step.step_config as ShopifyOrderStatusStepConfig
+      if (!args.contactId) throw new Error(tErr('needsContact', { step: 'shopify_order_status' }))
+      const accountId = args.automation.account_id
+      const conversationId = await resolveConversationId(args)
+      const reply = (text: string) =>
+        engineSendText({
+          accountId,
+          userId: args.automation.user_id,
+          conversationId,
+          contactId: args.contactId!,
+          text,
+        })
+      // Not-found / failure paths flag the conversation for a human. The
+      // tag_added chain is deliberately not dispatched from here.
+      const flagForTeam = async () => {
+        if (cfg.failure_tag_id) {
+          await addContactTagIfAbsent(db, { accountId, contactId: args.contactId!, tagId: cfg.failure_tag_id })
+        }
+      }
+
+      const { data: contact } = await db
+        .from('contacts')
+        .select('phone')
+        .eq('id', args.contactId)
+        .eq('account_id', accountId)
+        .maybeSingle()
+      const phone = toE164(contact?.phone as string | undefined)
+      if (!phone) throw new Error(tErr('contactPhoneMissing'))
+
+      let text: string
+      let found: boolean
+      try {
+        const conn = await loadConnection(db, accountId)
+        if (!conn) throw new Error(tErr('shopifyNotConnected'))
+        const result = await lookupOrdersForPhone(
+          await connectionGraphql(db, conn),
+          phone,
+          args.context.message_text,
+        )
+        text = formatOrderReply(result)
+        found = result.kind === 'orders'
+      } catch (err) {
+        // Still answer the customer, then fail the step so the cause
+        // (e.g. missing read_orders scope) shows on the logs page.
+        await reply(formatOrderUnavailable())
+        await flagForTeam()
+        throw err
+      }
+
+      const { whatsapp_message_id } = await reply(text)
+      if (!found) await flagForTeam()
+      return found
+        ? `order status sent via Meta (${whatsapp_message_id})`
+        : `no matching order; reply sent via Meta (${whatsapp_message_id})`
     }
 
     default:

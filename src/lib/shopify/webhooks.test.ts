@@ -1,6 +1,6 @@
 import { createHmac } from 'node:crypto'
 import { describe, it, expect, vi } from 'vitest'
-import { registerProductWebhooks, verifyShopifyHmac } from './webhooks'
+import { registerOrderWebhooks, registerProductWebhooks, verifyShopifyHmac, webhookUrlProblem } from './webhooks'
 import type { GraphqlRunner } from './client'
 
 const secret = 'shpss_test_secret'
@@ -17,6 +17,18 @@ describe('verifyShopifyHmac', () => {
     expect(verifyShopifyHmac(body, goodHeader, 'other-secret')).toBe(false)
     expect(verifyShopifyHmac(body, null, secret)).toBe(false)
     expect(verifyShopifyHmac(body, 'not-base64!!', secret)).toBe(false)
+  })
+})
+
+describe('webhookUrlProblem', () => {
+  it('accepts a public https deployment', () => {
+    expect(webhookUrlProblem('https://wacrm-rosy-alpha.vercel.app/api/shopify/webhook')).toBeNull()
+  })
+
+  it('explains local and non-https addresses', () => {
+    expect(webhookUrlProblem('http://localhost:3000/api/shopify/webhook')).toMatch(/public https/)
+    expect(webhookUrlProblem('https://192.168.1.20/api/shopify/webhook')).toMatch(/public https/)
+    expect(webhookUrlProblem('http://crm.example.com/api/shopify/webhook')).toMatch(/public https/)
   })
 })
 
@@ -56,5 +68,20 @@ describe('registerProductWebhooks', () => {
     const created = calls.filter((c) => c.query.includes('CreateWebhook')).map((c) => c.vars?.topic)
     expect(deleted).toEqual(['w2'])
     expect(created).toEqual(['PRODUCTS_UPDATE', 'PRODUCTS_DELETE'])
+  })
+
+  it("leaves another service's order subscription alone", async () => {
+    const worker = 'https://shanthi-orders-push.example.workers.dev/webhook/shopify'
+    const { gql, calls } = fakeGql([
+      { id: 'w1', topic: 'ORDERS_CREATE', uri: worker },
+      { id: 'w2', topic: 'ORDERS_FULFILLED', uri: 'https://old.example.com/api/shopify/webhook' },
+    ])
+    await registerOrderWebhooks(gql, url)
+    const deleted = calls.filter((c) => c.query.includes('DeleteWebhook')).map((c) => c.vars?.id)
+    const created = calls.filter((c) => c.query.includes('CreateWebhook')).map((c) => c.vars?.topic)
+    // Only our own stale endpoint is replaced; the worker's hook (w1) survives
+    // and wacrm still gets its own ORDERS_CREATE subscription alongside it.
+    expect(deleted).toEqual(['w2'])
+    expect(created).toEqual(['ORDERS_CREATE', 'ORDERS_FULFILLED', 'ORDERS_CANCELLED'])
   })
 })

@@ -490,7 +490,12 @@ export type AutomationTriggerType =
   | 'time_based'
   /** Customer tapped a reply button / list row whose id matches; lets
    *  multi-step menus be chained across automations. */
-  | 'interactive_reply';
+  | 'interactive_reply'
+  /** Shopify order webhooks (orders/create, orders/fulfilled, orders/cancelled);
+   *  the order's fields arrive as {{ vars.order_name }} etc. */
+  | 'shopify_order_created'
+  | 'shopify_order_fulfilled'
+  | 'shopify_order_cancelled';
 
 export type AutomationStepType =
   | 'send_message'
@@ -505,7 +510,9 @@ export type AutomationStepType =
   | 'wait'
   | 'condition'
   | 'send_webhook'
-  | 'close_conversation';
+  | 'close_conversation'
+  /** Reply with the contact's Shopify orders, looked up by their phone (060). */
+  | 'shopify_order_status';
 
 export type AutomationLogStatus = 'success' | 'partial' | 'failed';
 
@@ -576,6 +583,11 @@ export interface TagStepConfig {
   tag_id: string;
 }
 
+export interface ShopifyOrderStatusStepConfig {
+  /** Tag added when no matching order is found (or Shopify can't be read). */
+  failure_tag_id?: string;
+}
+
 export interface AssignConversationStepConfig {
   mode: 'specific' | 'round_robin';
   agent_id?: string;
@@ -639,6 +651,7 @@ export type AutomationStepConfig =
   | WaitStepConfig
   | ConditionStepConfig
   | SendWebhookStepConfig
+  | ShopifyOrderStatusStepConfig
   | Record<string, never>
   | Record<string, unknown>;
 

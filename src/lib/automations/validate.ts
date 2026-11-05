@@ -157,7 +157,8 @@ function validateOne(step: StepLike, path: string, issues: ValidationIssue[]): v
       }
       break
     case 'close_conversation':
-      // No config required.
+    case 'shopify_order_status':
+      // No required config (shopify_order_status's failure tag is optional).
       break
     default:
       issues.push({ path, message: t('unknownStepType', { type: step.step_type }) })

@@ -1195,7 +1195,8 @@
         "wait": "대기",
         "condition": "조건 (If/Else)",
         "send_webhook": "웹훅 보내기",
-        "close_conversation": "대화 닫기"
+        "close_conversation": "대화 닫기",
+        "shopify_order_status": "Shopify Order Status"
       },
       "triggers": {
         "new_message_received": {
@@ -1213,6 +1214,18 @@
         "interactive_reply": {
           "label": "버튼 / 목록 응답",
           "hint": "고객이 id가 일치하는 버튼이나 목록 행을 탭했을 때 — 자동화 간 메뉴를 연결할 수 있습니다"
+        },
+        "shopify_order_created": {
+          "label": "Shopify: 주문 접수",
+          "hint": "고객이 주문하면 실행됩니다. 변수: vars.order_name, order_total, customer_first_name"
+        },
+        "shopify_order_fulfilled": {
+          "label": "Shopify: 주문 발송",
+          "hint": "주문이 발송 처리되면 실행됩니다. 변수: vars.order_name, tracking_number, tracking_url, tracking_company"
+        },
+        "shopify_order_cancelled": {
+          "label": "Shopify: 주문 취소",
+          "hint": "주문이 취소되면 실행됩니다. 변수: vars.order_name, cancel_reason"
         },
         "new_contact_created": {
           "label": "새 연락처 생성됨",
@@ -1345,7 +1358,9 @@
         "matchExact": "정확히 일치",
         "waitForReply": "계속하기 전에 답장 기다리기",
         "waitForReplyHint": "고객이 버튼을 누르거나 답장할 때까지 여기서 멈춥니다(최대 24시간). 이후 단계(메시지 내용 조건 포함)는 그 답장을 사용합니다.",
-        "closeConversationHint": "대화 상태를 \"닫힘\"으로 설정합니다. 추가 설정이 필요 없습니다."
+        "closeConversationHint": "대화 상태를 \"닫힘\"으로 설정합니다. 추가 설정이 필요 없습니다.",
+        "failureTagLabel": "Tag when not found (optional)",
+        "shopifyOrderStatusHint": "Looks up the customer’s Shopify orders by their WhatsApp number and replies with status, payment and tracking. If their message has an order number, only that order is shown, and only if it belongs to them."
       },
       "preview": {
         "noText": "아직 텍스트 없음",
@@ -1359,7 +1374,8 @@
           "days": "일"
         },
         "when": "{subject} 조건",
-        "noUrl": "URL 없음"
+        "noUrl": "URL 없음",
+        "shopifyOrderStatus": "replies with their Shopify orders"
       }
     }
   },
@@ -2289,7 +2305,8 @@
       "step2": "In the app’s version settings, add the read_products and read_inventory scopes, then release the version.",
       "step3": "Install the app on your store (Home → Install app).",
       "step4": "Copy the Client ID and Client secret from the app’s Settings page.",
-      "step5": "Paste them here with your .myshopify.com address and click Connect Shopify."
+      "step5": "Paste them here with your .myshopify.com address and click Connect Shopify.",
+      "liveUpdatesError": "Live updates are off: {error}"
     }
   },
   "SignupPage": {
@@ -2643,7 +2660,9 @@
       "conversationNotInAccount": "대화가 이 계정에 속하지 않습니다",
       "noContactForConversation": "대화를 확인할 수 없습니다: 연락처 없음",
       "noConversation": "전송할 수 없습니다: 연락처에 기존 대화가 없습니다",
-      "tagAddedNoConversation": "tag_added 자동화가 전송할 수 없습니다: 연락처에 기존 대화가 없습니다"
+      "tagAddedNoConversation": "tag_added 자동화가 전송할 수 없습니다: 연락처에 기존 대화가 없습니다",
+      "shopifyNotConnected": "Shopify is not connected (Settings → Shopify).",
+      "contactPhoneMissing": "The contact has no valid phone number to look up orders."
     }
   },
   "Validation": {
@@ -3024,5 +3043,35 @@
     "untracked": "Stock not tracked",
     "openInStore": "Open in store",
     "loadMore": "Load more ({shown} of {total})"
+  },
+  "ShopifyOrderStatus": {
+    "headerOne": "📦 Here’s your order:",
+    "headerMany": "📦 Here are your recent orders:",
+    "orderLine": "*{name}*, placed {date}",
+    "statusLine": "Status: {status}",
+    "paymentLine": "Payment: {payment}",
+    "courierLine": "🚚 {courier}",
+    "trackLine": "Track: {url}",
+    "orderNotFound": "We couldn’t find order {number} for this WhatsApp number. Our team will check and reply here shortly. 🙏",
+    "noOrders": "We couldn’t find any orders placed with this WhatsApp number. If you ordered with a different number, please share your order number and our team will check it for you. 🙏",
+    "unavailable": "We can’t check your order status right now. Our team will reply here shortly. 🙏",
+    "stage": {
+      "cancelled": "Cancelled",
+      "delivered": "Delivered ✅",
+      "out_for_delivery": "Out for delivery",
+      "shipped": "Shipped",
+      "partly_shipped": "Partly shipped",
+      "processing": "Being packed"
+    },
+    "payment": {
+      "PAID": "Paid",
+      "PENDING": "Payment pending",
+      "AUTHORIZED": "Authorized",
+      "PARTIALLY_PAID": "Partly paid",
+      "PARTIALLY_REFUNDED": "Partly refunded",
+      "REFUNDED": "Refunded",
+      "VOIDED": "Voided",
+      "EXPIRED": "Expired"
+    }
   }
 }

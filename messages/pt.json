@@ -1195,7 +1195,8 @@
         "wait": "Aguardar",
         "condition": "Condição (Se/Senão)",
         "send_webhook": "Enviar webhook",
-        "close_conversation": "Fechar conversa"
+        "close_conversation": "Fechar conversa",
+        "shopify_order_status": "Shopify Order Status"
       },
       "triggers": {
         "new_message_received": {
@@ -1213,6 +1214,18 @@
         "interactive_reply": {
           "label": "Resposta de botão / lista",
           "hint": "O cliente toca em um botão ou item de lista cujo id corresponde — encadeie menus entre automações"
+        },
+        "shopify_order_created": {
+          "label": "Shopify: Pedido realizado",
+          "hint": "Quando um cliente faz um pedido. Variáveis: vars.order_name, order_total, customer_first_name"
+        },
+        "shopify_order_fulfilled": {
+          "label": "Shopify: Pedido enviado",
+          "hint": "Quando um pedido é enviado. Variáveis: vars.order_name, tracking_number, tracking_url, tracking_company"
+        },
+        "shopify_order_cancelled": {
+          "label": "Shopify: Pedido cancelado",
+          "hint": "Quando um pedido é cancelado. Variáveis: vars.order_name, cancel_reason"
         },
         "new_contact_created": {
           "label": "Novo contato criado",
@@ -1345,7 +1358,9 @@
         "matchExact": "Exata",
         "waitForReply": "Aguardar resposta antes de continuar",
         "waitForReplyHint": "Pausa aqui até o cliente tocar em um botão ou responder (até 24h). As etapas seguintes, incluindo Se/Senão no conteúdo da mensagem, usam essa resposta.",
-        "closeConversationHint": "Define o status da conversa como \"fechada\". Nenhuma configuração necessária."
+        "closeConversationHint": "Define o status da conversa como \"fechada\". Nenhuma configuração necessária.",
+        "failureTagLabel": "Tag when not found (optional)",
+        "shopifyOrderStatusHint": "Looks up the customer’s Shopify orders by their WhatsApp number and replies with status, payment and tracking. If their message has an order number, only that order is shown, and only if it belongs to them."
       },
       "preview": {
         "noText": "sem texto ainda",
@@ -1359,7 +1374,8 @@
           "days": "dias"
         },
         "when": "quando {subject}",
-        "noUrl": "sem URL"
+        "noUrl": "sem URL",
+        "shopifyOrderStatus": "replies with their Shopify orders"
       }
     }
   },
@@ -2289,7 +2305,8 @@
       "step2": "In the app’s version settings, add the read_products and read_inventory scopes, then release the version.",
       "step3": "Install the app on your store (Home → Install app).",
       "step4": "Copy the Client ID and Client secret from the app’s Settings page.",
-      "step5": "Paste them here with your .myshopify.com address and click Connect Shopify."
+      "step5": "Paste them here with your .myshopify.com address and click Connect Shopify.",
+      "liveUpdatesError": "Live updates are off: {error}"
     }
   },
   "SignupPage": {
@@ -2643,7 +2660,9 @@
       "conversationNotInAccount": "a conversa não pertence a esta conta",
       "noContactForConversation": "não foi possível identificar a conversa: sem contato",
       "noConversation": "não é possível enviar: o contato não tem uma conversa existente",
-      "tagAddedNoConversation": "a automação tag_added não pode enviar: o contato não tem uma conversa existente"
+      "tagAddedNoConversation": "a automação tag_added não pode enviar: o contato não tem uma conversa existente",
+      "shopifyNotConnected": "Shopify is not connected (Settings → Shopify).",
+      "contactPhoneMissing": "The contact has no valid phone number to look up orders."
     }
   },
   "Validation": {
@@ -3024,5 +3043,35 @@
     "untracked": "Stock not tracked",
     "openInStore": "Open in store",
     "loadMore": "Load more ({shown} of {total})"
+  },
+  "ShopifyOrderStatus": {
+    "headerOne": "📦 Here’s your order:",
+    "headerMany": "📦 Here are your recent orders:",
+    "orderLine": "*{name}*, placed {date}",
+    "statusLine": "Status: {status}",
+    "paymentLine": "Payment: {payment}",
+    "courierLine": "🚚 {courier}",
+    "trackLine": "Track: {url}",
+    "orderNotFound": "We couldn’t find order {number} for this WhatsApp number. Our team will check and reply here shortly. 🙏",
+    "noOrders": "We couldn’t find any orders placed with this WhatsApp number. If you ordered with a different number, please share your order number and our team will check it for you. 🙏",
+    "unavailable": "We can’t check your order status right now. Our team will reply here shortly. 🙏",
+    "stage": {
+      "cancelled": "Cancelled",
+      "delivered": "Delivered ✅",
+      "out_for_delivery": "Out for delivery",
+      "shipped": "Shipped",
+      "partly_shipped": "Partly shipped",
+      "processing": "Being packed"
+    },
+    "payment": {
+      "PAID": "Paid",
+      "PENDING": "Payment pending",
+      "AUTHORIZED": "Authorized",
+      "PARTIALLY_PAID": "Partly paid",
+      "PARTIALLY_REFUNDED": "Partly refunded",
+      "REFUNDED": "Refunded",
+      "VOIDED": "Voided",
+      "EXPIRED": "Expired"
+    }
   }
 }

@@ -175,6 +175,15 @@ BEGIN
   ) THEN
     RAISE EXCEPTION 'ai_knowledge_documents.source is missing — migration 060 did not apply';
   END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'shopify_config' AND column_name = 'webhook_error'
+  ) THEN
+    RAISE EXCEPTION 'shopify_config.webhook_error is missing — migration 061 did not apply';
+  END IF;
+  IF to_regclass('public.shopify_webhook_events') IS NULL THEN
+    RAISE EXCEPTION 'shopify_webhook_events is missing — migration 063 did not apply';
+  END IF;
 
   RAISE NOTICE 'schema verification passed';
 END

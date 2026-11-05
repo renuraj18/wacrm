@@ -1195,7 +1195,8 @@
         "wait": "Wait",
         "condition": "Condition (If/Else)",
         "send_webhook": "Send Webhook",
-        "close_conversation": "Close Conversation"
+        "close_conversation": "Close Conversation",
+        "shopify_order_status": "Shopify Order Status"
       },
       "triggers": {
         "new_message_received": {
@@ -1213,6 +1214,18 @@
         "interactive_reply": {
           "label": "Button / List Reply",
           "hint": "Customer taps a button or list row whose id matches — chain menus across automations"
+        },
+        "shopify_order_created": {
+          "label": "Shopify: Order Placed",
+          "hint": "When a customer places an order. Variables: vars.order_name, order_total, customer_first_name"
+        },
+        "shopify_order_fulfilled": {
+          "label": "Shopify: Order Shipped",
+          "hint": "When an order is fulfilled. Variables: vars.order_name, tracking_number, tracking_url, tracking_company"
+        },
+        "shopify_order_cancelled": {
+          "label": "Shopify: Order Cancelled",
+          "hint": "When an order is cancelled. Variables: vars.order_name, cancel_reason"
         },
         "new_contact_created": {
           "label": "New Contact Created",
@@ -1345,7 +1358,9 @@
         "matchExact": "Exact",
         "waitForReply": "Wait for reply before continuing",
         "waitForReplyHint": "Pauses here until the customer taps a button or replies (up to 24h). The steps after this one, including If/Else on message content, then use their reply.",
-        "closeConversationHint": "Sets the conversation status to \"closed\". No configuration needed."
+        "closeConversationHint": "Sets the conversation status to \"closed\". No configuration needed.",
+        "failureTagLabel": "Tag when not found (optional)",
+        "shopifyOrderStatusHint": "Looks up the customer’s Shopify orders by their WhatsApp number and replies with status, payment and tracking. If their message has an order number, only that order is shown, and only if it belongs to them."
       },
       "preview": {
         "noText": "no text yet",
@@ -1359,7 +1374,8 @@
           "days": "days"
         },
         "when": "when {subject}",
-        "noUrl": "no url"
+        "noUrl": "no url",
+        "shopifyOrderStatus": "replies with their Shopify orders"
       }
     }
   },
@@ -2289,7 +2305,8 @@
       "step2": "In the app’s version settings, add the read_products and read_inventory scopes, then release the version.",
       "step3": "Install the app on your store (Home → Install app).",
       "step4": "Copy the Client ID and Client secret from the app’s Settings page.",
-      "step5": "Paste them here with your .myshopify.com address and click Connect Shopify."
+      "step5": "Paste them here with your .myshopify.com address and click Connect Shopify.",
+      "liveUpdatesError": "Live updates are off: {error}"
     }
   },
   "SignupPage": {
@@ -2643,7 +2660,9 @@
       "conversationNotInAccount": "conversation does not belong to this account",
       "noContactForConversation": "cannot resolve conversation: no contact",
       "noConversation": "cannot send: contact has no existing conversation",
-      "tagAddedNoConversation": "tag_added automation cannot send: contact has no existing conversation"
+      "tagAddedNoConversation": "tag_added automation cannot send: contact has no existing conversation",
+      "shopifyNotConnected": "Shopify is not connected (Settings → Shopify).",
+      "contactPhoneMissing": "The contact has no valid phone number to look up orders."
     }
   },
   "Validation": {
@@ -3024,5 +3043,35 @@
     "untracked": "Stock not tracked",
     "openInStore": "Open in store",
     "loadMore": "Load more ({shown} of {total})"
+  },
+  "ShopifyOrderStatus": {
+    "headerOne": "📦 Here’s your order:",
+    "headerMany": "📦 Here are your recent orders:",
+    "orderLine": "*{name}*, placed {date}",
+    "statusLine": "Status: {status}",
+    "paymentLine": "Payment: {payment}",
+    "courierLine": "🚚 {courier}",
+    "trackLine": "Track: {url}",
+    "orderNotFound": "We couldn’t find order {number} for this WhatsApp number. Our team will check and reply here shortly. 🙏",
+    "noOrders": "We couldn’t find any orders placed with this WhatsApp number. If you ordered with a different number, please share your order number and our team will check it for you. 🙏",
+    "unavailable": "We can’t check your order status right now. Our team will reply here shortly. 🙏",
+    "stage": {
+      "cancelled": "Cancelled",
+      "delivered": "Delivered ✅",
+      "out_for_delivery": "Out for delivery",
+      "shipped": "Shipped",
+      "partly_shipped": "Partly shipped",
+      "processing": "Being packed"
+    },
+    "payment": {
+      "PAID": "Paid",
+      "PENDING": "Payment pending",
+      "AUTHORIZED": "Authorized",
+      "PARTIALLY_PAID": "Partly paid",
+      "PARTIALLY_REFUNDED": "Partly refunded",
+      "REFUNDED": "Refunded",
+      "VOIDED": "Voided",
+      "EXPIRED": "Expired"
+    }
   }
 }

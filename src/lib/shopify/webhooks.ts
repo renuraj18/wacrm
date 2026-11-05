@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
 import type { GraphqlRunner } from './client'
 import { ShopifyError } from './client'
+import { ORDER_WEBHOOK_TOPICS } from './order-events'
 
 // ============================================================
 // Shopify product webhooks: signature check + idempotent
@@ -31,6 +32,31 @@ export function verifyShopifyHmac(
     return false
   }
   return supplied.length === expected.length && timingSafeEqual(supplied, expected)
+}
+
+/**
+ * Shopify only delivers to public https endpoints. Returns why `url`
+ * can't receive webhooks (e.g. connecting from a local dev server), or
+ * null when it can.
+ */
+export function webhookUrlProblem(url: string): string | null {
+  let parsed: URL
+  try {
+    parsed = new URL(url)
+  } catch {
+    return `Live updates need a valid public URL, got "${url}".`
+  }
+  const host = parsed.hostname
+  const local =
+    host === 'localhost' ||
+    host.endsWith('.localhost') ||
+    host === '127.0.0.1' ||
+    host === '[::1]' ||
+    /^(10|192\.168|172\.(1[6-9]|2\d|3[01]))\./.test(host)
+  if (parsed.protocol !== 'https:' || local) {
+    return `Live updates need a public https address, but this CRM is running at ${parsed.origin}. Connect from your deployed CRM (or set NEXT_PUBLIC_SITE_URL) and click Save changes; products still sync with Sync now.`
+  }
+  return null
 }
 
 const LIST_QUERY = `
@@ -72,25 +98,31 @@ async function listWebhooks(gql: GraphqlRunner): Promise<ExistingWebhook[]> {
   return data.webhookSubscriptions.edges.map((e) => e.node)
 }
 
+/** Path of our own webhook endpoint; only subscriptions ending in it are ours. */
+const OWN_WEBHOOK_PATH = '/api/shopify/webhook'
+
 /**
- * Make sure every product topic points at `callbackUrl`. Subscriptions
- * for these topics that point elsewhere (an old deploy URL) are removed
- * so Shopify doesn't keep delivering to a dead host.
+ * Make sure every topic in `topics` points at `callbackUrl`. A
+ * subscription for one of these topics that points at an older deploy of
+ * *this* endpoint is removed so Shopify doesn't keep delivering to a dead
+ * host. Subscriptions to anything else (another service's relay on the
+ * same Shopify app, e.g. a push-notification worker) are left alone.
  */
-export async function registerProductWebhooks(
+async function registerTopics(
   gql: GraphqlRunner,
   callbackUrl: string,
+  topicList: readonly string[],
 ): Promise<void> {
   const existing = await listWebhooks(gql)
-  const topics = new Set<string>(PRODUCT_WEBHOOK_TOPICS)
+  const topics = new Set<string>(topicList)
 
   for (const hook of existing) {
-    if (topics.has(hook.topic) && hook.uri !== callbackUrl) {
+    if (topics.has(hook.topic) && hook.uri !== callbackUrl && hook.uri.endsWith(OWN_WEBHOOK_PATH)) {
       await gql(DELETE_MUTATION, { id: hook.id })
     }
   }
 
-  for (const topic of PRODUCT_WEBHOOK_TOPICS) {
+  for (const topic of topicList) {
     if (existing.some((h) => h.topic === topic && h.uri === callbackUrl)) continue
     const data = await gql<{
       webhookSubscriptionCreate: { userErrors: { field: string[] | null; message: string }[] }
@@ -102,10 +134,26 @@ export async function registerProductWebhooks(
   }
 }
 
-/** Remove our product subscriptions (used on disconnect). Best-effort. */
+export function registerProductWebhooks(gql: GraphqlRunner, callbackUrl: string): Promise<void> {
+  return registerTopics(gql, callbackUrl, PRODUCT_WEBHOOK_TOPICS)
+}
+
+/**
+ * Order webhooks drive the Shopify order automation triggers. They need
+ * the read_orders scope (and protected customer data access for the
+ * phone), so a failure here is reported separately from the product
+ * webhooks, which keep working without it.
+ */
+export function registerOrderWebhooks(gql: GraphqlRunner, callbackUrl: string): Promise<void> {
+  return registerTopics(gql, callbackUrl, ORDER_WEBHOOK_TOPICS)
+}
+
+/** Remove our product and order subscriptions (used on disconnect). Best-effort. */
 export async function removeProductWebhooks(gql: GraphqlRunner): Promise<void> {
-  const topics = new Set<string>(PRODUCT_WEBHOOK_TOPICS)
+  const topics = new Set<string>([...PRODUCT_WEBHOOK_TOPICS, ...ORDER_WEBHOOK_TOPICS])
   for (const hook of await listWebhooks(gql)) {
-    if (topics.has(hook.topic)) await gql(DELETE_MUTATION, { id: hook.id })
+    if (topics.has(hook.topic) && hook.uri.endsWith(OWN_WEBHOOK_PATH)) {
+      await gql(DELETE_MUTATION, { id: hook.id })
+    }
   }
 }

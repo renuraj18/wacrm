@@ -32,6 +32,7 @@ import {
   isTemplateWebhookField,
 } from '@/lib/whatsapp/template-webhook'
 import { applyMessageStatus } from '@/lib/whatsapp/message-status-sync'
+import { contentTriggersFor, hasInteractiveReplyAutomation } from '@/lib/automations/inbound-triggers'
 
 // The `after()` callback in POST runs within this route's max duration.
 // Inbound processing can fan out to per-media Meta verification calls, so
@@ -858,16 +859,20 @@ async function processMessage(
   )[] = []
   // Content-level triggers are suppressed when a flow or a waiting
   // automation consumed the message — see the comment blocks above.
-  if (!contentConsumed) {
-    automationTriggers.push('new_message_received', 'keyword_match')
-    // Interactive tap → fire the interactive_reply trigger too (only
-    // meaningful when a button/list reply actually arrived). Enables
-    // automation-only chained menus; when a Flow owns the menu it will
-    // have consumed the reply and this is skipped.
-    if (interactiveReplyId) {
-      automationTriggers.push('interactive_reply')
-    }
-  }
+  // An interactive tap also fires interactive_reply (automation-only
+  // chained menus; a Flow-owned menu consumed the reply above). When an
+  // interactive_reply automation answers the tap's id, keyword_match is
+  // skipped so a keyword matching the row title doesn't reply twice.
+  automationTriggers.push(
+    ...contentTriggersFor({
+      contentConsumed,
+      interactiveReplyId,
+      interactiveReplyHandled:
+        !contentConsumed && !!interactiveReplyId
+          ? await hasInteractiveReplyAutomation(supabaseAdmin(), accountId, interactiveReplyId)
+          : false,
+    }),
+  )
   // new_contact_created fires only when the webhook just auto-created the
   // contact row. first_inbound_message fires whenever this is the contact's
   // first-ever customer-sent message — a superset that also catches
