@@ -4,6 +4,7 @@ import type { Deal, PipelineStage } from "@/types";
 import { Calendar, Check, ShoppingBag, X } from "lucide-react";
 import { formatCurrency } from "@/lib/currency";
 import { useTranslations } from "next-intl";
+import { initialOf } from "@/lib/inbox/initial";
 
 interface DealCardProps {
   deal: Deal;
@@ -23,7 +24,7 @@ function formatDate(dateStr: string) {
 function initials(name?: string, fallback?: string) {
   const source = (name || fallback || "?").trim();
   if (!source) return "?";
-  return source.charAt(0).toUpperCase();
+  return initialOf(source);
 }
 
 export function DealCard({ deal, stage, onEdit, isOverlay }: DealCardProps) {

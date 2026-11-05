@@ -22,6 +22,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { initialOf } from "@/lib/inbox/initial";
 
 interface ConversationListProps {
   activeConversationId: string | null;
@@ -441,7 +442,7 @@ function ConversationItem({
 }: ConversationItemProps) {
   const contact = conversation.contact;
   const displayName = contact?.name || contact?.phone || t("unknown");
-  const initials = displayName.charAt(0).toUpperCase();
+  const initials = initialOf(displayName);
 
   const handleClick = useCallback(() => {
     onSelect(conversation);

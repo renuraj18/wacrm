@@ -21,6 +21,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { format } from "date-fns";
 import { useTranslations } from "next-intl";
 import { contactHandle } from "@/lib/whatsapp/wa-identity";
+import { initialOf } from "@/lib/inbox/initial";
 
 interface ContactSidebarProps {
   contact: Contact | null;
@@ -132,7 +133,7 @@ export function ContactSidebar({ contact }: ContactSidebarProps) {
   }
 
   const displayName = contact.name || contactHandle(contact);
-  const initials = displayName.charAt(0).toUpperCase();
+  const initials = initialOf(displayName);
 
   return (
     <div className="flex h-full w-70 flex-col border-l border-border bg-card">

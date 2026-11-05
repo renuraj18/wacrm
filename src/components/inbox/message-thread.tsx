@@ -73,6 +73,7 @@ import {
   isTempMessage,
   newTempMessageId,
 } from "@/lib/inbox/optimistic-messages";
+import { initialOf } from "@/lib/inbox/initial";
 
 const MESSAGE_PAGE_SIZE = 200;
 
@@ -1033,7 +1034,7 @@ export function MessageThread({
             </button>
           )}
           <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-muted text-sm font-medium text-foreground">
-            {displayName.charAt(0).toUpperCase()}
+            {initialOf(displayName)}
           </div>
           <div className="min-w-0">
             <h2 className="truncate text-sm font-semibold text-foreground">{displayName}</h2>
