@@ -68,13 +68,21 @@ export async function uploadPhoto(ctx: StoreSendContext, url: string): Promise<s
 /** Stores the message in the inbox the way automation sends are stored (sender_type 'bot'). */
 async function record(
   ctx: StoreSendContext,
-  row: { contentText: string; waMessageId: string; interactive?: { body: string; buttons: QuickButton[] } },
+  row: {
+    contentText: string
+    /** Meta's id for the message; null for a card shown inside a carousel (it has no id of its own). */
+    waMessageId: string | null
+    interactive?: { body: string; buttons: QuickButton[] }
+    /** The photo, so the inbox shows it. */
+    mediaUrl?: string
+  },
 ): Promise<void> {
   const { error } = await ctx.db.from('messages').insert({
     conversation_id: ctx.conversationId,
     sender_type: 'bot',
-    content_type: row.interactive ? 'interactive' : 'text',
+    content_type: row.mediaUrl ? 'image' : row.interactive ? 'interactive' : 'text',
     content_text: row.contentText,
+    media_url: row.mediaUrl ?? null,
     interactive_payload: row.interactive
       ? { kind: 'buttons', body: row.interactive.body, buttons: row.interactive.buttons }
       : null,
@@ -129,7 +137,7 @@ export async function sendStoreReply(ctx: StoreSendContext, reply: StoreReply): 
       link: reply.image,
       caption: reply.text,
     })
-    await record(ctx, { contentText: reply.text, waMessageId: messageId })
+    await record(ctx, { contentText: reply.text, waMessageId: messageId, mediaUrl: reply.image })
     if (reply.buttons.length) await sendText(ctx, 'What next?', reply.buttons)
     return
   }
@@ -162,7 +170,11 @@ async function sendCarousel(
     ids = new Map()
     waId = await postMessage(ctx, build(ids))
   }
-  await record(ctx, { contentText: `${reply.text}\n${reply.cards.map((c) => c.text.split('\n')[0]).join(' · ')}`, waMessageId: waId })
+  await record(ctx, { contentText: reply.text, waMessageId: waId })
+  // Each card shows in the inbox with its photo, as the customer sees it in the carousel.
+  for (const c of reply.cards) {
+    await record(ctx, { contentText: c.text, waMessageId: null, mediaUrl: c.image })
+  }
 
   // Upload the photos WhatsApp doesn't have yet, so the next customer gets them by id.
   const missing = urls.filter((u) => !ids.has(u))
