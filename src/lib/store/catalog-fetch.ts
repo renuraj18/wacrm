@@ -171,7 +171,7 @@ export async function fetchCollectionProducts(
 }
 
 const TITLE_SEARCH = `query($q: String!, $after: String) {
-  products(first: 25, after: $after, sortKey: BEST_SELLING, query: $q) {
+  products(first: 25, after: $after, sortKey: RELEVANCE, query: $q) {
     pageInfo { hasNextPage } edges { cursor node { ${PRODUCT_FIELDS} } } } }`
 
 /** Buyable sarees whose title has every one of these words (one Shopify query, not one per collection). */
