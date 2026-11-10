@@ -45,4 +45,18 @@ describe('buildCarouselPayload', () => {
     expect(p.interactive.action.cards[0].body.text.length).toBe(160)
     expect(p.interactive.action.cards[0].action.buttons[0].quick_reply.title.length).toBe(20)
   })
+
+  it('a link button becomes a Buy Now call-to-action on the card', () => {
+    const linkCard: CarouselCard = {
+      image: { link: 'https://img.example/1.jpg' },
+      text: '*Trending Kolam Saree*\n₹650',
+      buttons: [{ url: 'https://shanthiboutique.com/products/trending-kolam-saree', title: 'Buy Now' }],
+    }
+    const p = buildCarouselPayload('919632982245', 'Here are the sarees', [linkCard, linkCard]) as {
+      interactive: { action: { cards: { action: { buttons: unknown[] } }[] } }
+    }
+    expect(p.interactive.action.cards[0].action.buttons).toEqual([
+      { type: 'cta_url', cta_url: { display_text: 'Buy Now', url: 'https://shanthiboutique.com/products/trending-kolam-saree' } },
+    ])
+  })
 })

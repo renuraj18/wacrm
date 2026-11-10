@@ -114,7 +114,7 @@ describe('routeStore', () => {
     const [reply] = (await routeStore(d, { phone: PHONE, text: 'shop' })) as StoreReply[]
     expect(reply.kind).toBe('carousel')
     if (reply.kind !== 'carousel') return
-    expect(reply.cards.map((c) => c.buttons[0].id)).toEqual([ids.collection('11'), ids.collection('10')])
+    expect(reply.cards.map((c) => (c.buttons[0] as { id: string }).id)).toEqual([ids.collection('11'), ids.collection('10')])
   })
 
   it('a collection name in a message opens that collection', async () => {

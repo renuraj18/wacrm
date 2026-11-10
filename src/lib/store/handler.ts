@@ -21,14 +21,21 @@ import {
   type TickedCollection,
 } from './catalog-fetch'
 
-export interface Button {
+/** A quick-reply button: the customer's tap comes back with this id. */
+export interface QuickButton {
   id: string
   title: string
 }
+/** A link button: opens a web page. Only used on carousel cards. */
+export interface LinkButton {
+  url: string
+  title: string
+}
+export type Button = QuickButton | LinkButton
 
 export type StoreReply =
-  | { kind: 'text'; text: string; buttons?: Button[] }
-  | { kind: 'image'; image: string; text: string; buttons: Button[] }
+  | { kind: 'text'; text: string; buttons?: QuickButton[] }
+  | { kind: 'image'; image: string; text: string; buttons: QuickButton[] }
   | { kind: 'carousel'; text: string; cards: { image: string; text: string; buttons: Button[] }[]; next: Button[] }
 
 export interface StoreDeps {
@@ -47,9 +54,9 @@ export interface StoreMessage {
   catalogItems?: { retailer_id?: string | null; quantity?: number | null }[]
 }
 
-const BTN_SHOP: Button = { id: ids.menu, title: 'Shop more' }
-const BTN_CART: Button = { id: ids.cart, title: 'My cart' }
-const BTN_CHECKOUT: Button = { id: ids.checkout, title: 'Checkout' }
+const BTN_SHOP: QuickButton = { id: ids.menu, title: 'Shop more' }
+const BTN_CART: QuickButton = { id: ids.cart, title: 'My cart' }
+const BTN_CHECKOUT: QuickButton = { id: ids.checkout, title: 'Checkout' }
 
 const SHOP_WORDS = /\b(shop|shopping|buy|purchase|browse|saree|sarees|collection|collections)\b/i
 const NEW_WORDS = /\b(new|latest|arrival|arrivals)\b/i
@@ -201,7 +208,7 @@ function productCards(
   const cards = sellers.slice(0, 10).map((p) => ({
     image: p.image ?? '',
     text: cardText(p),
-    buttons: [{ id: ids.add(variantIdOf(p)), title: 'Add to cart' }, { id: ids.product(numericId(p.id)), title: 'Details' }],
+    buttons: [{ url: p.onlineStoreUrl ?? '', title: 'Buy Now' }],
   }))
   // Only collections page with a collection id; new arrivals and best sellers have no "More" yet.
   const next = page.next && collectionId ? [{ id: ids.collection(collectionId, page.next), title: 'More sarees ▶' }] : []
@@ -318,14 +325,11 @@ export async function variantStock(deps: StoreDeps, variantId: string): Promise<
   }
 }
 
-/** Carousel card text: name, price and the product's page on the website (WhatsApp allows 160 characters). */
+/** Carousel card text: name and price. The Buy Now button links to the product page. */
 function cardText(p: StoreProduct): string {
   const price = priceLine(p.variants.nodes, p.priceRangeV2.minVariantPrice.amount)
-  const site = p.onlineStoreUrl ? `\n${p.onlineStoreUrl}` : ''
-  // Shorten the name, never the link.
-  const room = 160 - price.length - site.length - 4
-  const name = cleanTitle(p.title).slice(0, Math.max(10, room))
-  return `*${name}*\n${price}${site}`
+  const name = cleanTitle(p.title).slice(0, 100)
+  return `*${name}*\n${price}`.slice(0, 160)
 }
 
 function numericId(gid: string): string {

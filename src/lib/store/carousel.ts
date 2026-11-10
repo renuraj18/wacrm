@@ -9,8 +9,11 @@ export interface CarouselCard {
   /** Photo: a WhatsApp media id or an https link. */
   image: { id: string } | { link: string }
   text?: string
-  buttons: { id: string; title: string }[]
+  /** Quick-reply buttons (id) or one link button (url). A card uses one kind throughout. */
+  buttons: CarouselButton[]
 }
+
+export type CarouselButton = { id: string; title: string } | { url: string; title: string }
 
 export const CAROUSEL_MIN_CARDS = 2
 export const CAROUSEL_MAX_CARDS = 10
@@ -45,10 +48,17 @@ export function buildCarouselPayload(to: string, bodyText: string, cards: Carous
           header: { type: 'image', image: c.image },
           ...(c.text ? { body: { text: c.text.slice(0, CAROUSEL_CARD_TEXT_MAX) } } : {}),
           action: {
-            buttons: c.buttons.map((b) => ({
-              type: 'quick_reply',
-              quick_reply: { id: b.id.slice(0, 256), title: b.title.slice(0, CAROUSEL_BUTTON_TITLE_MAX) },
-            })),
+            buttons: c.buttons.map((b) =>
+              'url' in b
+                ? {
+                    type: 'cta_url',
+                    cta_url: { display_text: b.title.slice(0, CAROUSEL_BUTTON_TITLE_MAX), url: b.url },
+                  }
+                : {
+                    type: 'quick_reply',
+                    quick_reply: { id: b.id.slice(0, 256), title: b.title.slice(0, CAROUSEL_BUTTON_TITLE_MAX) },
+                  },
+            ),
           },
         })),
       },

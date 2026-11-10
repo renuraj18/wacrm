@@ -10,7 +10,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { sendInteractiveButtons, sendMediaMessage, sendTextMessage, MetaApiError } from '@/lib/whatsapp/meta-api'
 import { buildCarouselPayload, type CarouselCard } from './carousel'
 import { cachedMediaIds, forgetMediaIds, rememberMediaIds } from './storage'
-import type { Button, StoreReply } from './handler'
+import type { QuickButton, StoreReply } from './handler'
 
 const GRAPH = 'https://graph.facebook.com/v21.0'
 const UPLOAD_CONCURRENCY = 4
@@ -61,7 +61,7 @@ export async function uploadPhoto(ctx: StoreSendContext, url: string): Promise<s
 /** Stores the message in the inbox the way automation sends are stored (sender_type 'bot'). */
 async function record(
   ctx: StoreSendContext,
-  row: { contentText: string; waMessageId: string; interactive?: { body: string; buttons: Button[] } },
+  row: { contentText: string; waMessageId: string; interactive?: { body: string; buttons: QuickButton[] } },
 ): Promise<void> {
   const { error } = await ctx.db.from('messages').insert({
     conversation_id: ctx.conversationId,
@@ -86,7 +86,7 @@ async function record(
     .eq('account_id', ctx.accountId)
 }
 
-async function sendText(ctx: StoreSendContext, text: string, buttons: Button[] = []): Promise<void> {
+async function sendText(ctx: StoreSendContext, text: string, buttons: QuickButton[] = []): Promise<void> {
   if (buttons.length >= 1 && buttons.length <= 3) {
     const { messageId } = await sendInteractiveButtons({
       phoneNumberId: ctx.phoneNumberId,
