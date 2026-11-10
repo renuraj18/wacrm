@@ -22,6 +22,8 @@ const tablesWithoutDomainData = new Set([
   // Service-role only and not business data: it cascades away with the
   // old account (migration 063).
   "shopify_webhook_events",
+  // Send-once claims for the order messages, same as the webhook log above.
+  "shopify_order_notification_sends",
 ]);
 
 function accountScopedTables(): Set<string> {

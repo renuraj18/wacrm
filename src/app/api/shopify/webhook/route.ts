@@ -24,6 +24,8 @@ import { after, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/automations/admin-client'
 import { runAutomationsForTrigger } from '@/lib/automations/engine'
 import { findExistingContact, isUniqueViolation } from '@/lib/contacts/dedupe'
+import { buildOrderNotification, ORDER_NOTIFICATION_TOPICS } from '@/lib/shopify/order-notifications'
+import { sendOrderNotification } from '@/lib/shopify/order-notification-sender'
 import {
   ORDER_TOPIC_TRIGGERS,
   parseOrderEvent,
@@ -67,7 +69,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  if (topic in ORDER_TOPIC_TRIGGERS) {
+  if (topic in ORDER_TOPIC_TRIGGERS || topic === 'orders/paid') {
     let order: ShopifyOrderPayload
     try {
       order = JSON.parse(rawBody) as ShopifyOrderPayload
@@ -137,6 +139,25 @@ async function handleOrderEvent(
     if (claimErr) throw claimErr
     if (!claimed || claimed.length === 0) return
   }
+
+  // Opt-in: when the account's order notifications are on, wacrm sends the
+  // order messages itself (see order-notifications.ts) and the automations
+  // for these topics stay quiet, so a customer never gets both.
+  const { data: cfg } = await admin
+    .from('shopify_config')
+    .select('order_notifications_enabled')
+    .eq('account_id', accountId)
+    .maybeSingle()
+  if (cfg?.order_notifications_enabled && (ORDER_NOTIFICATION_TOPICS as readonly string[]).includes(topic)) {
+    const job = buildOrderNotification(topic, order)
+    if (!job) return
+    const result = await sendOrderNotification(admin, accountId, job)
+    console.log(`[shopify/webhook] ${topic} ${job.dedupeKey}: ${result}`)
+    return
+  }
+
+  // Orders paid later (orders/paid) only feed the order messages above.
+  if (!(topic in ORDER_TOPIC_TRIGGERS)) return
 
   const event = parseOrderEvent(order)
   if (!event.phone) {
