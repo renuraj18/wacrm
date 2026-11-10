@@ -66,6 +66,9 @@ function fakeShopify(collections: { id: string; title: string; ticked: boolean }
       }
     }
     if (query.includes('collection(id')) {
+      // Shopify rejects anything but a full collection id; fail the same way here.
+      const id = String(vars.id ?? '')
+      if (!/^gid:\/\/shopify\/Collection\/\d+$/.test(id)) throw new Error(`Invalid id: ${id}`)
       return { collection: { title: 'Kolam Sarees', products: { pageInfo: { hasNextPage: false }, edges: products.map((p, i) => ({ cursor: String(i), node: p })) } } }
     }
     if (query.includes('sortKey: CREATED_AT')) {
@@ -208,6 +211,18 @@ describe('ambiguous collection words', () => {
     if (reply.kind !== 'text') return
     expect(reply.text).toContain('Which one')
     expect(reply.buttons?.length).toBe(2)
+  })
+})
+
+describe('opening a collection by name', () => {
+  it('"kolam" opens Kolam Sarees with a valid collection id (not a doubled Shopify prefix)', async () => {
+    const one = fakeShopify(
+      [{ id: 'gid://shopify/Collection/10', title: 'Kolam Sarees', ticked: false }],
+      [product('1', 'Kolam Saree', 5), product('3', 'Kolam Silk', 4)],
+    )
+    const { d } = deps(one)
+    const [reply] = (await routeStore(d, { phone: PHONE, text: 'kolam' })) as StoreReply[]
+    expect(reply.kind).toBe('carousel')
   })
 })
 

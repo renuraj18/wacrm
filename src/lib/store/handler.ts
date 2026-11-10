@@ -63,7 +63,7 @@ export async function routeStore(deps: StoreDeps, msg: StoreMessage): Promise<St
   if (CART_WORDS.test(text)) return dispatch(deps, msg.phone, { kind: 'cart' })
   if (NEW_WORDS.test(text)) return dispatch(deps, msg.phone, { kind: 'newArrivals', after: null })
   const named = await collectionChoices(deps, text)
-  if (named.length === 1) return dispatch(deps, msg.phone, { kind: 'collection', collectionId: named[0].id, offset: 0 })
+  if (named.length === 1) return dispatch(deps, msg.phone, { kind: 'collection', collectionId: numericId(named[0].id), offset: 0 })
   if (named.length > 1) return chooseCollection(named)
   if (SHOP_WORDS.test(text)) return dispatch(deps, msg.phone, { kind: 'menu' })
   return null
@@ -172,7 +172,8 @@ async function menu(deps: StoreDeps): Promise<StoreReply[]> {
 }
 
 async function collectionCards(deps: StoreDeps, collectionId: string, offset: number): Promise<StoreReply[]> {
-  const gid = `gid://shopify/Collection/${collectionId}`
+  // Accepts the numeric id (as in button ids) or a full Shopify id.
+  const gid = `gid://shopify/Collection/${numericId(collectionId)}`
   const { title, products, next } = await fetchCollectionProducts(deps.run, gid, offset ? String(offset) : null)
   if (!title) return [{ kind: 'text', text: 'That collection is no longer available.', buttons: [BTN_SHOP] }]
   return productCards(deps, title, { products, next })
