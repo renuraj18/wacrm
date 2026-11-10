@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { CartLine } from './cart'
-import { routeStore, type StoreDeps, type StoreReply } from './handler'
+import { collectionNamedIn, routeStore, type StoreDeps, type StoreReply } from './handler'
 import { ids } from './ids'
 
 const PHONE = '919632982245'
@@ -170,6 +170,26 @@ describe('collection names', () => {
     expect(reply.kind).toBe('carousel')
     const [again] = (await routeStore(d, { phone: PHONE, text: 'kolam sarees' })) as StoreReply[]
     expect(again.kind).toBe('carousel')
+  })
+})
+
+describe('collection matching by name', () => {
+  const both = fakeShopify(
+    [
+      { id: 'gid://shopify/Collection/20', title: 'Luxury Soft Silk', ticked: false },
+      { id: 'gid://shopify/Collection/21', title: 'Soft Silk', ticked: false },
+    ],
+    [product('1', 'Soft Silk Saree', 5), product('3', 'Luxury Silk', 4)],
+  )
+  it('"luxury" matches Luxury Soft Silk by one of its words', async () => {
+    const { d } = deps(both)
+    const r = await collectionNamedIn(d, 'luxury')
+    expect(r?.title).toBe('Luxury Soft Silk')
+  })
+  it('"soft silk" matches the Soft Silk collection, not Luxury Soft Silk', async () => {
+    const { d } = deps(both)
+    const r = await collectionNamedIn(d, 'soft silk')
+    expect(r?.title).toBe('Soft Silk')
   })
 })
 

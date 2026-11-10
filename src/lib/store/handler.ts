@@ -68,19 +68,37 @@ export async function routeStore(deps: StoreDeps, msg: StoreMessage): Promise<St
   return null
 }
 
+const STOP_WORDS = new Set(['sarees', 'saree', 'the', 'and', 'with', 'for', 'price', 'show', 'all'])
+
 /**
- * The published collection named in the message ("kolam", "kolam sarees").
- * Ticking isn't needed for this, same as the relay. The longest name wins.
+ * The published collection a message is asking for. Ticking isn't needed.
+ * 1. A whole collection name in the message ("kolam", "soft silk"): the
+ *    longest such name wins.
+ * 2. Otherwise a collection with the most words the message shares with its
+ *    name ("luxury" → "Luxury Soft Silk"); ties go to the shorter name.
  */
 export async function collectionNamedIn(deps: StoreDeps, text: string): Promise<{ id: string; title: string } | null> {
   const lower = text.toLowerCase()
   const cols = await fetchAllCollections(deps.run)
-  let best: { id: string; title: string } | null = null
+
+  let whole: { id: string; title: string } | null = null
   for (const c of cols) {
-    const names = [c.title.toLowerCase(), c.title.toLowerCase().replace(/\s*sarees?$/, '')].filter((n) => n.length >= 3)
-    if (names.some((n) => lower.includes(n)) && (!best || c.title.length > best.title.length)) best = c
+    const key = c.title.toLowerCase().replace(/\s*sarees?$/, '').trim()
+    if (key.length >= 3 && lower.includes(key) && (!whole || key.length > whole.title.toLowerCase().length)) whole = c
   }
-  return best
+  if (whole) return whole
+
+  const words = (lower.match(/[a-z]+/g) ?? []).filter((w) => w.length >= 4 && !STOP_WORDS.has(w))
+  let best: { id: string; title: string; score: number } | null = null
+  for (const c of cols) {
+    const titleWords = new Set((c.title.toLowerCase().match(/[a-z]+/g) ?? []))
+    const score = words.filter((w) => titleWords.has(w)).length
+    if (score === 0) continue
+    if (!best || score > best.score || (score === best.score && c.title.length < best.title.length)) {
+      best = { id: c.id, title: c.title, score }
+    }
+  }
+  return best ? { id: best.id, title: best.title } : null
 }
 
 type Action = NonNullable<ReturnType<typeof parseStoreId>> | { kind: 'menu' }
