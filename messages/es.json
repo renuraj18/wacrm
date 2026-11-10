@@ -525,7 +525,14 @@
       "deals": "Negocios",
       "noTags": "Sin etiquetas",
       "noDeals": "Sin negocios",
-      "addNotePlaceholder": "Agregar una nota..."
+      "addNotePlaceholder": "Agregar una nota...",
+      "changePhoto": "Cambiar foto",
+      "removePhoto": "Quitar foto",
+      "photoType": "Usa una imagen PNG, JPEG o WebP.",
+      "photoTooLarge": "Las fotos deben pesar 5 MB o menos.",
+      "photoUpdated": "Foto de contacto actualizada.",
+      "photoRemoved": "Foto de contacto eliminada.",
+      "photoFailed": "No se pudo actualizar la foto del contacto."
     },
     "aiBanner": {
       "pausedTitle": "El asistente de IA está en pausa aquí",
@@ -584,7 +591,12 @@
       "toastBulkDeleted": "{count} contactos eliminados",
       "filterByTag": "Filtrar por {name}",
       "removeTagFilter": "Quitar el filtro {name}",
-      "selectContact": "Seleccionar {name}"
+      "selectContact": "Seleccionar {name}",
+      "exportBtn": "Exportar",
+      "exporting": "Exportando…",
+      "exportEmpty": "No hay contactos para exportar.",
+      "exportDone": "Se exportaron {count} contactos.",
+      "exportFailed": "No se pudieron exportar los contactos."
     },
     "form": {
       "addTitle": "Agregar contacto",

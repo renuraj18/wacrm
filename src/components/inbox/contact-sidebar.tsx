@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
@@ -15,7 +15,11 @@ import {
   DollarSign,
   StickyNote,
   Plus,
+  Camera,
 } from "lucide-react";
+import { toast } from "sonner";
+import { useCan } from "@/hooks/use-can";
+import { MEDIA_MAX_BYTES_BY_KIND, uploadAccountMedia } from "@/lib/storage/upload-media";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { format } from "date-fns";
@@ -32,6 +36,10 @@ export function ContactSidebar({ contact }: ContactSidebarProps) {
   const tThread = useTranslations("Inbox.messageThread");
 
   const { accountId } = useAuth();
+  const canEditPhoto = useCan("send-messages");
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const [photoOverride, setPhotoOverride] = useState<{ contactId: string; url: string | null } | null>(null);
+  const [photoBusy, setPhotoBusy] = useState(false);
   const [copied, setCopied] = useState(false);
   const [deals, setDeals] = useState<Deal[]>([]);
   const [notes, setNotes] = useState<ContactNote[]>([]);
@@ -124,6 +132,45 @@ export function ContactSidebar({ contact }: ContactSidebarProps) {
     setAddingNote(false);
   }, [contact, newNote, accountId]);
 
+  // Photo shown after a change in this panel; keyed by contact so
+  // switching conversations never shows another contact's new photo.
+  const avatarUrl =
+    photoOverride && photoOverride.contactId === contact?.id ? photoOverride.url : (contact?.avatar_url ?? null);
+
+  const savePhoto = async (url: string | null) => {
+    if (!contact) return;
+    const { error } = await createClient().from("contacts").update({ avatar_url: url }).eq("id", contact.id);
+    if (error) {
+      toast.error(tSidebar("photoFailed"));
+      return;
+    }
+    setPhotoOverride({ contactId: contact.id, url });
+    toast.success(tSidebar(url ? "photoUpdated" : "photoRemoved"));
+  };
+
+  const handlePhotoPicked = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !contact) return;
+    if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
+      toast.error(tSidebar("photoType"));
+      return;
+    }
+    if (file.size > MEDIA_MAX_BYTES_BY_KIND.image) {
+      toast.error(tSidebar("photoTooLarge"));
+      return;
+    }
+    setPhotoBusy(true);
+    try {
+      const { publicUrl } = await uploadAccountMedia("chat-media", file, `contacts/${contact.id}`);
+      await savePhoto(publicUrl);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : tSidebar("photoFailed"));
+    } finally {
+      setPhotoBusy(false);
+    }
+  };
+
   if (!contact) {
     return (
       <div className="flex h-full w-70 items-center justify-center border-l border-border bg-card">
@@ -141,17 +188,45 @@ export function ContactSidebar({ contact }: ContactSidebarProps) {
         <div className="p-4">
           {/* Contact Info */}
           <div className="flex flex-col items-center text-center">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted text-lg font-semibold text-foreground">
-              {contact.avatar_url ? (
-                <img
-                  src={contact.avatar_url}
-                  alt={displayName}
-                  className="h-16 w-16 rounded-full object-cover"
-                />
-              ) : (
-                initials
+            <div className="relative">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted text-lg font-semibold text-foreground">
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt={displayName} className="h-16 w-16 rounded-full object-cover" />
+                ) : (
+                  initials
+                )}
+              </div>
+              {canEditPhoto && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => photoInputRef.current?.click()}
+                    disabled={photoBusy}
+                    aria-label={tSidebar("changePhoto")}
+                    className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full border border-border bg-card text-foreground shadow-sm hover:bg-muted disabled:opacity-50"
+                  >
+                    <Camera className="h-3.5 w-3.5" />
+                  </button>
+                  <input
+                    ref={photoInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    className="hidden"
+                    onChange={handlePhotoPicked}
+                  />
+                </>
               )}
             </div>
+            {canEditPhoto && avatarUrl && (
+              <button
+                type="button"
+                onClick={() => savePhoto(null)}
+                disabled={photoBusy}
+                className="mt-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
+              >
+                {tSidebar("removePhoto")}
+              </button>
+            )}
             <h3 className="mt-3 text-sm font-semibold text-foreground">
               {displayName}
             </h3>

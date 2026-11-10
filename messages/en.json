@@ -525,7 +525,14 @@
       "deals": "Deals",
       "noTags": "No tags",
       "noDeals": "No deals",
-      "addNotePlaceholder": "Add a note..."
+      "addNotePlaceholder": "Add a note...",
+      "changePhoto": "Change photo",
+      "removePhoto": "Remove photo",
+      "photoType": "Use a PNG, JPEG or WebP image.",
+      "photoTooLarge": "Photos must be 5 MB or smaller.",
+      "photoUpdated": "Contact photo updated.",
+      "photoRemoved": "Contact photo removed.",
+      "photoFailed": "Couldn't update the contact photo."
     },
     "aiBanner": {
       "pausedTitle": "AI assistant is paused here",
@@ -584,7 +591,12 @@
       "toastBulkDeleted": "{count} contacts deleted",
       "filterByTag": "Filter by {name}",
       "removeTagFilter": "Remove {name} filter",
-      "selectContact": "Select {name}"
+      "selectContact": "Select {name}",
+      "exportBtn": "Export",
+      "exporting": "Exporting…",
+      "exportEmpty": "No contacts to export.",
+      "exportDone": "Exported {count} contacts.",
+      "exportFailed": "Couldn't export contacts."
     },
     "form": {
       "addTitle": "Add Contact",

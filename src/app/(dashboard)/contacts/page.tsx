@@ -39,6 +39,7 @@ import {
   Search,
   Plus,
   Upload,
+  Download,
   MoreHorizontal,
   Pencil,
   Trash2,
@@ -62,6 +63,7 @@ import {
   contactSearchPattern,
 } from '@/lib/contacts/search-filter';
 import { pageAfterRangeError, pageAfterShrink } from '@/lib/contacts/page-bounds';
+import { buildContactsCsv, contactsExportFilename, type ContactExportRow } from '@/lib/contacts/export-csv';
 
 const PAGE_SIZE = 25;
 
@@ -91,6 +93,7 @@ export default function ContactsPage() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailContactId, setDetailContactId] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [customFieldsOpen, setCustomFieldsOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Contact | null>(null);
@@ -344,6 +347,70 @@ export default function ContactsPage() {
   );
   const hasActiveFilters = search.trim().length > 0 || selectedTagIds.length > 0;
 
+  /**
+   * Download every contact in the account as CSV (not just the page on
+   * screen). Pages through contacts and contact_tags in 1000-row chunks,
+   * PostgREST's default cap. RLS limits both to the caller's account.
+   */
+  async function exportContacts() {
+    setExporting(true);
+    try {
+      const PAGE = 1000;
+      const contacts: (Contact & { id: string })[] = [];
+      for (let from = 0; ; from += PAGE) {
+        const { data, error } = await supabase
+          .from('contacts')
+          .select('id, name, phone, email, company, wa_username, created_at')
+          .order('created_at', { ascending: true })
+          .order('id', { ascending: true })
+          .range(from, from + PAGE - 1);
+        if (error) throw error;
+        contacts.push(...((data ?? []) as (Contact & { id: string })[]));
+        if (!data || data.length < PAGE) break;
+      }
+
+      const tagsByContact = new Map<string, string[]>();
+      for (let from = 0; ; from += PAGE) {
+        const { data, error } = await supabase
+          .from('contact_tags')
+          .select('id, contact_id, tags(name)')
+          .order('id', { ascending: true })
+          .range(from, from + PAGE - 1);
+        if (error) throw error;
+        const rows = (data ?? []) as unknown as { contact_id: string; tags: { name: string } | null }[];
+        for (const row of rows) {
+          if (!row.tags) continue;
+          const list = tagsByContact.get(row.contact_id) ?? [];
+          list.push(row.tags.name);
+          tagsByContact.set(row.contact_id, list);
+        }
+        if (rows.length < PAGE) break;
+      }
+
+      if (contacts.length === 0) {
+        toast.info(t('exportEmpty'));
+        return;
+      }
+      const rows: ContactExportRow[] = contacts.map((c) => ({
+        contact: c,
+        tags: tagsByContact.get(c.id) ?? [],
+      }));
+      const blob = new Blob([buildContactsCsv(rows)], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = contactsExportFilename();
+      link.click();
+      URL.revokeObjectURL(url);
+      toast.success(t('exportDone', { count: contacts.length }));
+    } catch (err) {
+      console.error('Contact export failed:', err);
+      toast.error(t('exportFailed'));
+    } finally {
+      setExporting(false);
+    }
+  }
+
   function toggleTagFilter(tagId: string) {
     setSelectedTagIds((prev) =>
       prev.includes(tagId)
@@ -377,6 +444,17 @@ export default function ContactsPage() {
             >
               <SlidersHorizontal className="size-4" />
               {t('customFieldsBtn')}
+            </Button>
+          )}
+          {canEdit && (
+            <Button
+              variant="outline"
+              onClick={exportContacts}
+              disabled={exporting}
+              className="border-border text-muted-foreground hover:bg-muted"
+            >
+              <Download className="size-4" />
+              {exporting ? t('exporting') : t('exportBtn')}
             </Button>
           )}
           <GatedButton

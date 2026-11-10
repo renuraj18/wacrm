@@ -525,7 +525,14 @@
       "deals": "딜",
       "noTags": "태그 없음",
       "noDeals": "딜 없음",
-      "addNotePlaceholder": "메모 추가..."
+      "addNotePlaceholder": "메모 추가...",
+      "changePhoto": "사진 변경",
+      "removePhoto": "사진 삭제",
+      "photoType": "PNG, JPEG 또는 WebP 이미지를 사용하세요.",
+      "photoTooLarge": "사진은 5MB 이하여야 합니다.",
+      "photoUpdated": "연락처 사진을 업데이트했습니다.",
+      "photoRemoved": "연락처 사진을 삭제했습니다.",
+      "photoFailed": "연락처 사진을 업데이트하지 못했습니다."
     },
     "aiBanner": {
       "pausedTitle": "이 대화에서 AI 어시스턴트가 일시 중지됨",
@@ -584,7 +591,12 @@
       "toastBulkDeleted": "연락처 {count}개가 삭제되었습니다",
       "filterByTag": "{name}(으)로 필터링",
       "removeTagFilter": "{name} 필터 제거",
-      "selectContact": "{name} 선택"
+      "selectContact": "{name} 선택",
+      "exportBtn": "내보내기",
+      "exporting": "내보내는 중…",
+      "exportEmpty": "내보낼 연락처가 없습니다.",
+      "exportDone": "연락처 {count}개를 내보냈습니다.",
+      "exportFailed": "연락처를 내보내지 못했습니다."
     },
     "form": {
       "addTitle": "연락처 추가",
