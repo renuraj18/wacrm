@@ -23,6 +23,7 @@ import { resumeAwaitingReply, runAutomationsForTrigger } from '@/lib/automations
 import { dispatchInboundToFlows } from '@/lib/flows/engine'
 import { dispatchInboundToAiReply } from '@/lib/ai/auto-reply'
 import { handleStoreInbound } from '@/lib/store/inbound'
+import { tagContactFromAd, type AdReferral } from '@/lib/ads/ad-tag'
 import { dispatchWebhookEvent } from '@/lib/webhooks/deliver'
 import {
   applyBroadcastRecipientStatus,
@@ -56,6 +57,8 @@ function supabaseAdmin() {
 
 interface WhatsAppMessage {
   id: string
+  /** Set on the first message from a Click-to-WhatsApp ad. */
+  referral?: AdReferral
   /**
    * Sender's phone number. **Optional since Meta's username rollout** —
    * a sender who has adopted a WhatsApp username and has no recent
@@ -890,6 +893,16 @@ async function processMessage(
   // logging zero steps. `runAutomationsForTrigger` owns its own try/catch
   // and never throws; the `.catch` is belt-and-braces so one trigger
   // type's failure can't skip the rest of the loop.
+  // Click-to-WhatsApp ad: tag the contact with the ad (first message only).
+  if (message.referral) {
+    await tagContactFromAd(supabaseAdmin(), {
+      accountId,
+      userId: configOwnerUserId,
+      contactId: contactRecord.id,
+      referral: message.referral,
+    }).catch((err) => console.error('[ads] tagging from referral failed:', err))
+  }
+
   // WhatsApp store (off unless the account turned it on). When the store
   // answers, automations and the AI reply stay quiet for this message.
   const storePhone = contactRecord.phone?.replace(/\D/g, '') ?? ''
