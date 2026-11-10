@@ -26,6 +26,8 @@ const tablesWithoutDomainData = new Set([
   "shopify_order_notification_sends",
   // Reminder log for abandoned checkouts (migration 066), same treatment.
   "shopify_cart_reminders",
+  // Parcel tracking targets for the /track page (migration 067): courier and tracking number only.
+  "shopify_tracking_links",
 ]);
 
 function accountScopedTables(): Set<string> {

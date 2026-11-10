@@ -11,6 +11,7 @@ import {
   type OrderNotificationJob,
 } from './order-notifications'
 import { storeTrackingLink } from './tracking-link'
+import { trackingSlug } from './tracking'
 
 export type OrderNotificationResult = 'sent' | 'duplicate'
 
@@ -45,7 +46,23 @@ export async function sendOrderNotification(
   try {
     const userId = await resolveAuditUserId(db, accountId)
     const { conversationId, contactId } = await resolveConversationByPhone(db, accountId, `+${job.to}`)
-    if (job.tracking) await storeTrackingLink(job.tracking)
+    if (job.tracking) {
+      // Read by the wacrm /track/<slug> page (the new button target), and by the relay
+      // until the shipped template that points at wacrm is approved.
+      const slug = trackingSlug(job.tracking.number)
+      const { error: trackErr } = await db.from('shopify_tracking_links').upsert(
+        {
+          slug,
+          account_id: accountId,
+          number: job.tracking.number,
+          url: job.tracking.url,
+          courier: job.tracking.courier,
+        },
+        { onConflict: 'slug' },
+      )
+      if (trackErr) throw trackErr
+      await storeTrackingLink(job.tracking)
+    }
 
     const send = (msg: { template: OrderNotificationJob['template']; bodyParams: string[] }) =>
       engineSendTemplate({
