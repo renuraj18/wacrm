@@ -193,3 +193,21 @@ describe('collection matching by name', () => {
   })
 })
 
+describe('ambiguous collection words', () => {
+  it('a word shared equally by two collections asks which one', async () => {
+    const two = fakeShopify(
+      [
+        { id: 'gid://shopify/Collection/30', title: 'Silk Kanchi', ticked: false },
+        { id: 'gid://shopify/Collection/31', title: 'Silk Banaras', ticked: false },
+      ],
+      [product('1', 'Silk Saree', 5), product('3', 'Silk Two', 4)],
+    )
+    const { d } = deps(two)
+    const [reply] = (await routeStore(d, { phone: PHONE, text: 'silk' })) as StoreReply[]
+    expect(reply.kind).toBe('text')
+    if (reply.kind !== 'text') return
+    expect(reply.text).toContain('Which one')
+    expect(reply.buttons?.length).toBe(2)
+  })
+})
+

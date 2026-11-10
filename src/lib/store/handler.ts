@@ -62,8 +62,9 @@ export async function routeStore(deps: StoreDeps, msg: StoreMessage): Promise<St
   const text = msg.text ?? ''
   if (CART_WORDS.test(text)) return dispatch(deps, msg.phone, { kind: 'cart' })
   if (NEW_WORDS.test(text)) return dispatch(deps, msg.phone, { kind: 'newArrivals', after: null })
-  const named = await collectionNamedIn(deps, text)
-  if (named) return dispatch(deps, msg.phone, { kind: 'collection', collectionId: named.id, offset: 0 })
+  const named = await collectionChoices(deps, text)
+  if (named.length === 1) return dispatch(deps, msg.phone, { kind: 'collection', collectionId: named[0].id, offset: 0 })
+  if (named.length > 1) return chooseCollection(named)
   if (SHOP_WORDS.test(text)) return dispatch(deps, msg.phone, { kind: 'menu' })
   return null
 }
@@ -78,6 +79,15 @@ const STOP_WORDS = new Set(['sarees', 'saree', 'the', 'and', 'with', 'for', 'pri
  *    name ("luxury" → "Luxury Soft Silk"); ties go to the shorter name.
  */
 export async function collectionNamedIn(deps: StoreDeps, text: string): Promise<{ id: string; title: string } | null> {
+  const choices = await collectionChoices(deps, text)
+  return choices.length === 1 ? choices[0] : null
+}
+
+/**
+ * The collections a message is asking for. One result is an open-now match;
+ * several are a tie to ask the customer about. Empty when nothing matches.
+ */
+export async function collectionChoices(deps: StoreDeps, text: string): Promise<{ id: string; title: string }[]> {
   const lower = text.toLowerCase()
   const cols = await fetchAllCollections(deps.run)
 
@@ -86,19 +96,30 @@ export async function collectionNamedIn(deps: StoreDeps, text: string): Promise<
     const key = c.title.toLowerCase().replace(/\s*sarees?$/, '').trim()
     if (key.length >= 3 && lower.includes(key) && (!whole || key.length > whole.title.toLowerCase().length)) whole = c
   }
-  if (whole) return whole
+  if (whole) return [whole]
 
   const words = (lower.match(/[a-z]+/g) ?? []).filter((w) => w.length >= 4 && !STOP_WORDS.has(w))
-  let best: { id: string; title: string; score: number } | null = null
-  for (const c of cols) {
-    const titleWords = new Set((c.title.toLowerCase().match(/[a-z]+/g) ?? []))
-    const score = words.filter((w) => titleWords.has(w)).length
-    if (score === 0) continue
-    if (!best || score > best.score || (score === best.score && c.title.length < best.title.length)) {
-      best = { id: c.id, title: c.title, score }
-    }
-  }
-  return best ? { id: best.id, title: best.title } : null
+  const scored = cols
+    .map((c) => {
+      const titleWords = new Set(c.title.toLowerCase().match(/[a-z]+/g) ?? [])
+      return { c, score: words.filter((w) => titleWords.has(w)).length }
+    })
+    .filter((x) => x.score > 0)
+  if (!scored.length) return []
+  const top = Math.max(...scored.map((x) => x.score))
+  const tied = scored.filter((x) => x.score === top)
+  if (tied.length === 1) return [tied[0].c]
+  // Equally good matches: let the customer choose.
+  return tied.map((x) => x.c)
+}
+
+function chooseCollection(choices: { id: string; title: string }[]): StoreReply[] {
+  const shown = choices.slice(0, 3)
+  return [{
+    kind: 'text',
+    text: `Which one do you mean?\n${choices.map((c) => `• ${c.title}`).join('\n')}`,
+    buttons: shown.map((c) => ({ id: ids.collection(numericId(c.id), 0), title: c.title.slice(0, 20) })),
+  }]
 }
 
 type Action = NonNullable<ReturnType<typeof parseStoreId>> | { kind: 'menu' }
