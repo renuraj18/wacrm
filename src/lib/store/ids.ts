@@ -9,7 +9,7 @@ export const MAX_BUTTON_ID = 256
 
 export type StoreAction =
   | { kind: 'menu' }
-  | { kind: 'collection'; collectionId: string; offset: number }
+  | { kind: 'collection'; collectionId: string; after: string | null }
   | { kind: 'newArrivals'; after: string | null }
   | { kind: 'bestSellers'; after: string | null }
   | { kind: 'product'; productId: string }
@@ -24,7 +24,7 @@ export const ids = {
   checkout: 's:checkout',
   newArrivals: (after?: string | null) => `s:n:${after ?? ''}`,
   bestSellers: (after?: string | null) => `s:b:${after ?? ''}`,
-  collection: (collectionId: string, offset = 0) => `s:c:${collectionId}:${offset}`,
+  collection: (collectionId: string, after: string | null = null) => `s:c:${collectionId}:${after ?? ''}`,
   product: (productId: string) => `s:p:${productId}`,
   add: (variantId: string) => `s:add:${variantId}`,
   remove: (variantId: string) => `s:rm:${variantId}`,
@@ -44,11 +44,9 @@ export function parseStoreId(raw: string | null | undefined): StoreAction | null
       return { kind: 'newArrivals', after: a || null }
     case 'b':
       return { kind: 'bestSellers', after: a || null }
-    case 'c': {
-      if (!/^\d+$/.test(a)) return null
-      const offset = Number(b)
-      return { kind: 'collection', collectionId: a, offset: Number.isFinite(offset) ? offset : 0 }
-    }
+    case 'c':
+      // The cursor after the id is Shopify's (opaque text), so it's kept as-is.
+      return /^\d+$/.test(a) ? { kind: 'collection', collectionId: a, after: b || null } : null
     case 'p':
       return /^\d+$/.test(a) ? { kind: 'product', productId: a } : null
     case 'add':

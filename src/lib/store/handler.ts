@@ -64,7 +64,7 @@ export async function routeStore(deps: StoreDeps, msg: StoreMessage): Promise<St
   if (CART_WORDS.test(text)) return dispatch(deps, msg.phone, { kind: 'cart' })
   if (NEW_WORDS.test(text)) return dispatch(deps, msg.phone, { kind: 'newArrivals', after: null })
   const named = await collectionChoices(deps, text)
-  if (named.length === 1) return dispatch(deps, msg.phone, { kind: 'collection', collectionId: numericId(named[0].id), offset: 0 })
+  if (named.length === 1) return dispatch(deps, msg.phone, { kind: 'collection', collectionId: numericId(named[0].id), after: null })
   if (named.length > 1) return sareesWithWords(deps, text)
   if (SHOP_WORDS.test(text)) return dispatch(deps, msg.phone, { kind: 'menu' })
   return null
@@ -128,7 +128,7 @@ async function dispatch(deps: StoreDeps, phone: string, action: Action): Promise
     case 'menu':
       return menu(deps)
     case 'collection':
-      return collectionCards(deps, action.collectionId, action.offset)
+      return collectionCards(deps, action.collectionId, action.after)
     case 'newArrivals':
       return productCards(deps, 'New arrivals', await fetchNewArrivals(deps.run, action.after))
     case 'bestSellers':
@@ -170,18 +170,24 @@ async function menu(deps: StoreDeps): Promise<StoreReply[]> {
   }]
 }
 
-async function collectionCards(deps: StoreDeps, collectionId: string, offset: number): Promise<StoreReply[]> {
-  // Accepts the numeric id (as in button ids) or a full Shopify id.
-  const gid = `gid://shopify/Collection/${numericId(collectionId)}`
-  const { title, products, next } = await fetchCollectionProducts(deps.run, gid, offset ? String(offset) : null)
+async function collectionCards(deps: StoreDeps, collectionId: string, after: string | null): Promise<StoreReply[]> {
+  // Button ids carry the numeric id; a full Shopify id is accepted too.
+  const numeric = numericId(collectionId)
+  if (!/^\d+$/.test(numeric)) {
+    console.error(`[store] bad collection id: ${collectionId}`)
+    return [{ kind: 'text', text: 'That collection is no longer available.', buttons: [BTN_SHOP] }]
+  }
+  const gid = `gid://shopify/Collection/${numeric}`
+  const { title, products, next } = await fetchCollectionProducts(deps.run, gid, after)
   if (!title) return [{ kind: 'text', text: 'That collection is no longer available.', buttons: [BTN_SHOP] }]
-  return productCards(deps, title, { products, next })
+  return productCards(deps, title, { products, next }, numeric)
 }
 
 function productCards(
   deps: StoreDeps,
   heading: string,
   page: { products: StoreProduct[]; next: string | null },
+  collectionId?: string,
 ): StoreReply[] {
   const sellers = page.products.filter((p) => p.image)
   if (sellers.length < 2) {
@@ -197,7 +203,8 @@ function productCards(
     text: `*${cleanTitle(p.title)}*\n${priceLine(p.variants.nodes, p.priceRangeV2.minVariantPrice.amount)}`,
     buttons: [{ id: ids.add(variantIdOf(p)), title: 'Add to cart' }, { id: ids.product(numericId(p.id)), title: 'Details' }],
   }))
-  const next = page.next ? [{ id: ids.collection(numericId(sellers[0].id), 0), title: 'More sarees ▶' }] : []
+  // Only collections page with a collection id; new arrivals and best sellers have no "More" yet.
+  const next = page.next && collectionId ? [{ id: ids.collection(collectionId, page.next), title: 'More sarees ▶' }] : []
   return [{ kind: 'carousel', text: `*${heading}*`, cards, next: [...next, BTN_CART, BTN_SHOP] }]
 }
 
