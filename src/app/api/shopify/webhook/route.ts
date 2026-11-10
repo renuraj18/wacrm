@@ -24,7 +24,17 @@ import { after, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/automations/admin-client'
 import { runAutomationsForTrigger } from '@/lib/automations/engine'
 import { findExistingContact, isUniqueViolation } from '@/lib/contacts/dedupe'
-import { buildOrderNotification, ORDER_NOTIFICATION_TOPICS } from '@/lib/shopify/order-notifications'
+import {
+  buildFulfillmentNotification,
+  buildOrderNotification,
+  courierFromTags,
+  FULFILLMENT_TOPICS,
+  ORDER_NOTIFICATION_TOPICS,
+  resellerContact,
+  type FulfillmentContext,
+  type FulfillmentPayload,
+} from '@/lib/shopify/order-notifications'
+import { connectionGraphql } from '@/lib/shopify/client'
 import { sendOrderNotification } from '@/lib/shopify/order-notification-sender'
 import {
   ORDER_TOPIC_TRIGGERS,
@@ -67,6 +77,24 @@ export async function POST(request: Request) {
   }
   if (!verifyShopifyHmac(rawBody, hmac, secret)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  if ((FULFILLMENT_TOPICS as readonly string[]).includes(topic)) {
+    let fulfillment: FulfillmentPayload
+    try {
+      fulfillment = JSON.parse(rawBody) as FulfillmentPayload
+    } catch {
+      return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
+    }
+    const webhookId = request.headers.get('x-shopify-webhook-id')
+    after(async () => {
+      try {
+        await handleFulfillmentEvent(admin, conn, topic, webhookId, fulfillment)
+      } catch (err) {
+        console.error(`[shopify/webhook] ${topic} failed:`, err)
+      }
+    })
+    return NextResponse.json({ ok: true })
   }
 
   if (topic in ORDER_TOPIC_TRIGGERS || topic === 'orders/paid') {
@@ -176,6 +204,79 @@ async function handleOrderEvent(
     contactId,
     context: { vars: event.vars },
   })
+}
+
+/**
+ * Shipped messages for fulfillments/create and fulfillments/update, when
+ * the account's order notifications are on. The payload only carries the
+ * parcel's destination, so the order is looked up for the reseller (who
+ * gets the message) and the courier picked in the app.
+ */
+async function handleFulfillmentEvent(
+  admin: AdminClient,
+  conn: NonNullable<Awaited<ReturnType<typeof loadConnectionByShop>>>,
+  topic: string,
+  webhookId: string | null,
+  fulfillment: FulfillmentPayload,
+): Promise<void> {
+  const accountId = conn.account_id
+  const { data: cfg } = await admin
+    .from('shopify_config')
+    .select('order_notifications_enabled')
+    .eq('account_id', accountId)
+    .maybeSingle()
+  if (!cfg?.order_notifications_enabled) return
+
+  if (webhookId) {
+    const { data: claimed, error: claimErr } = await admin
+      .from('shopify_webhook_events')
+      .upsert(
+        { webhook_id: webhookId, account_id: accountId, topic },
+        { onConflict: 'webhook_id', ignoreDuplicates: true },
+      )
+      .select('webhook_id')
+    if (claimErr) throw claimErr
+    if (!claimed || claimed.length === 0) return
+  }
+
+  let ctx: FulfillmentContext = { reseller: null, orderCourier: null }
+  if (fulfillment.order_id) {
+    try {
+      const run = await connectionGraphql(admin, conn)
+      const { order } = await run<{ order: RemoteOrder | null }>(
+        `query($id: ID!) { order(id: $id) { tags phone billingAddress { phone firstName } customer { firstName phone } } }`,
+        { id: `gid://shopify/Order/${fulfillment.order_id}` },
+      )
+      if (order) {
+        ctx = {
+          reseller: resellerContact({
+            tags: order.tags,
+            phone: order.phone,
+            billing_address: { phone: order.billingAddress?.phone, first_name: order.billingAddress?.firstName },
+            customer: { first_name: order.customer?.firstName, phone: order.customer?.phone },
+          }),
+          orderCourier: courierFromTags(order.tags),
+        }
+      }
+    } catch (err) {
+      console.warn(`[shopify/webhook] order lookup for ${fulfillment.order_id} failed, sending without it:`, err)
+    }
+  }
+
+  const job = buildFulfillmentNotification(fulfillment, ctx)
+  if (!job) {
+    console.log(`[shopify/webhook] ${topic} ${fulfillment.order_id}: nothing to send yet`)
+    return
+  }
+  const result = await sendOrderNotification(admin, accountId, job)
+  console.log(`[shopify/webhook] ${topic} ${job.dedupeKey}: ${result}`)
+}
+
+interface RemoteOrder {
+  tags: string[]
+  phone: string | null
+  billingAddress: { phone: string | null; firstName: string | null } | null
+  customer: { firstName: string | null; phone: string | null } | null
 }
 
 async function findOrCreateOrderContact(

@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  buildFulfillmentNotification,
   buildOrderNotification,
   cleanText,
+  courierLabel,
   money,
   normalizeIndianPhone,
   summariseItems,
+  trackingSlug,
   type OrderNotificationOrder,
 } from './order-notifications'
 
@@ -125,5 +128,72 @@ describe('helpers', () => {
     const text = summariseItems(items)
     expect(text.length).toBeLessThanOrEqual(700)
     expect(text).toMatch(/\+ \d+ more$/)
+  })
+})
+
+describe('shipped (fulfillments)', () => {
+  const parcel = {
+    order_id: 1001,
+    name: '#1001.1',
+    status: 'success',
+    tracking_number: 'DT123456',
+    tracking_url: null,
+    tracking_company: 'DTDC',
+    destination: { first_name: 'Priya', phone: '9632982245' },
+  }
+  const noCtx = { reseller: null, orderCourier: null }
+
+  it('names the courier and uses the v2 template, with the old one as fallback', () => {
+    expect(buildFulfillmentNotification(parcel, noCtx)).toEqual({
+      dedupeKey: 'shipped:1001:DT123456',
+      template: 'shanthi_order_shipped_v2',
+      to: '919632982245',
+      bodyParams: ['Priya', '#1001', 'DTDC', 'DT123456'],
+      buttonParam: 'DT123456',
+      fallback: { template: 'shanthi_order_shipped', bodyParams: ['Priya', '#1001', 'DT123456'] },
+      tracking: { number: 'DT123456', url: null, courier: 'DTDC' },
+    })
+  })
+
+  it('waits until a tracking number exists, and skips cancelled fulfillments', () => {
+    expect(buildFulfillmentNotification({ ...parcel, tracking_number: null }, noCtx)).toBeNull()
+    expect(buildFulfillmentNotification({ ...parcel, status: 'cancelled' }, noCtx)).toBeNull()
+  })
+
+  it('uses the courier from the order tag when Shopify has none, else Professional Couriers', () => {
+    const tagged = buildFulfillmentNotification(
+      { ...parcel, tracking_company: null },
+      { reseller: null, orderCourier: 'ST Courier' },
+    )
+    expect(tagged?.bodyParams[2]).toBe('ST Courier')
+    expect(buildFulfillmentNotification({ ...parcel, tracking_company: null }, noCtx)?.bodyParams[2]).toBe(
+      'Professional Couriers',
+    )
+  })
+
+  it('sends a reseller order to the reseller, with the reseller name', () => {
+    const job = buildFulfillmentNotification(parcel, {
+      reseller: { phone: '919876543210', name: 'Ravi Stores' },
+      orderCourier: null,
+    })
+    expect(job?.to).toBe('919876543210')
+    expect(job?.bodyParams[0]).toBe('Ravi Stores')
+  })
+
+  it('keeps Shopify tracking URL and uses the first of tracking_urls', () => {
+    const job = buildFulfillmentNotification(
+      { ...parcel, tracking_url: null, tracking_urls: ['https://track.example/DT123456'] },
+      noCtx,
+    )
+    expect(job?.tracking?.url).toBe('https://track.example/DT123456')
+  })
+
+  it('labels couriers and makes tracking slugs URL-safe', () => {
+    expect(courierLabel('Professional Couriers')).toBe('Professional Couriers')
+    expect(courierLabel('TPC')).toBe('Professional Couriers')
+    expect(courierLabel('st courier')).toBe('ST Courier')
+    expect(courierLabel('DTDC Express')).toBe('DTDC')
+    expect(courierLabel('Other Co')).toBe('Other Co')
+    expect(trackingSlug('DT 12/3.4')).toBe('DT1234')
   })
 })

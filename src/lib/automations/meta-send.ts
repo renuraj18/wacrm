@@ -54,6 +54,8 @@ interface SendTemplateArgs {
   templateName: string
   language?: string
   params?: string[]
+  /** Values for URL buttons with a {{1}} suffix, keyed by button index. */
+  buttonParams?: Record<number, string>
 }
 
 export async function engineSendText(args: SendTextArgs): Promise<{ whatsapp_message_id: string }> {
@@ -183,6 +185,9 @@ async function sendViaMeta(input: SendInput): Promise<{ whatsapp_message_id: str
         language: input.language,
         template: templateRow ?? undefined,
         params: input.params,
+        messageParams: input.buttonParams
+          ? { body: input.params ?? [], buttonParams: input.buttonParams }
+          : undefined,
       })
       return r.messageId
     }

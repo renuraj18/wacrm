@@ -40,11 +40,20 @@ export interface OrderNotificationOrder {
 export interface OrderNotificationJob {
   /** Send-once key; the same key is never sent twice. */
   dedupeKey: string
-  template: 'shanthi_order_placed' | 'shanthi_order_cancelled'
+  template: 'shanthi_order_placed' | 'shanthi_order_cancelled' | 'shanthi_order_shipped_v2' | 'shanthi_order_shipped'
   /** Digits-only, Meta form. */
   to: string
   bodyParams: string[]
+  /** Value for the URL button's {{1}} (shipped messages: the tracking slug). */
+  buttonParam?: string
+  /** Used instead when `template` isn't approved yet (Meta error codes below). */
+  fallback?: { template: OrderNotificationJob['template']; bodyParams: string[] }
+  /** Tracking details the /track page needs, stored before the send. */
+  tracking?: { number: string; url: string | null; courier: string | null }
 }
+
+/** Meta errors meaning "this template can't be used yet" (not approved, paused, wrong params). */
+export const TEMPLATE_UNAVAILABLE_CODES = [132000, 132001, 132015, 132016] as const
 
 /** Digits-only Indian number, the relay's rule (national 10-digit numbers are accepted). */
 export function normalizeIndianPhone(raw: string | null | undefined): string | null {
@@ -214,5 +223,92 @@ function placed(order: OrderNotificationOrder, to: string): OrderNotificationJob
       money(order.total_price),
       paymentLabel(order),
     ],
+  }
+}
+
+// ------------------------------------------------------------
+// Shipped messages (fulfillments/create and fulfillments/update)
+// ------------------------------------------------------------
+
+export const FULFILLMENT_TOPICS = ['fulfillments/create', 'fulfillments/update'] as const
+
+export interface FulfillmentPayload {
+  order_id?: number | string
+  name?: string
+  status?: string | null
+  tracking_number?: string | null
+  tracking_numbers?: (string | null)[] | null
+  tracking_url?: string | null
+  tracking_urls?: (string | null)[] | null
+  tracking_company?: string | null
+  destination?: { first_name?: string | null; phone?: string | null } | null
+}
+
+/** Digits-only phone + name of the reseller a fulfillment's order belongs to. */
+export interface FulfillmentContext {
+  reseller: { phone: string; name: string } | null
+  /** Courier from the "Courier: …" order tag, used when Shopify has none. */
+  orderCourier: string | null
+}
+
+/** The Shanthi Orders app's "Courier: …" tag (tags as a string or an array). */
+export function courierFromTags(tags: OrderNotificationOrder['tags']): string | null {
+  const tag = tagList(tags).find((t) => /^courier:/i.test(t))
+  return tag ? tag.slice('courier:'.length).trim() : null
+}
+
+export function isStCourier(name: string | null | undefined): boolean {
+  return /^\s*st\b/i.test(String(name ?? '')) || /\bst\s*courier/i.test(String(name ?? ''))
+}
+
+export function isDtdc(name: string | null | undefined): boolean {
+  return /\bdtdc\b/i.test(String(name ?? ''))
+}
+
+/** Courier named in the shipped message: Shopify's company or the app's tag, tidied. */
+export function courierLabel(name: string | null | undefined): string {
+  const n = cleanText(name)
+  if (!n || /professional|\btpc\b/i.test(n)) return 'Professional Couriers'
+  if (isStCourier(n)) return 'ST Courier'
+  if (isDtdc(n)) return 'DTDC'
+  return n
+}
+
+/** URL-safe form of a tracking number, used as the /track/<slug> button value. */
+export function trackingSlug(tracking: string | null | undefined): string {
+  return String(tracking ?? '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 64)
+}
+
+/**
+ * The shipped message for one fulfillment, or null when there is nothing to
+ * send yet (cancelled/failed fulfillment, or no tracking number yet).
+ * Uses shanthi_order_shipped_v2 (names the courier) and falls back to the
+ * original template until v2 is approved.
+ */
+export function buildFulfillmentNotification(
+  f: FulfillmentPayload,
+  ctx: FulfillmentContext,
+): OrderNotificationJob | null {
+  if (f.status && f.status !== 'success') return null
+  const tracking = cleanText(f.tracking_number) || cleanText(f.tracking_numbers?.[0] ?? '')
+  if (!tracking) return null
+
+  const to = ctx.reseller?.phone ?? normalizeIndianPhone(f.destination?.phone)
+  if (!to) return null
+
+  const name = ctx.reseller?.name ?? (cleanText(f.destination?.first_name) || 'Customer')
+  const orderName = String(f.name ?? '').replace(/\.\d+$/, '') // "#1001.1" → "#1001"
+  const trackingUrl = f.tracking_url || f.tracking_urls?.[0] || null
+  const courier = cleanText(f.tracking_company) || ctx.orderCourier || null
+  const oldParams = [name, orderName, tracking]
+
+  return {
+    dedupeKey: `shipped:${f.order_id}:${tracking}`,
+    template: 'shanthi_order_shipped_v2',
+    to,
+    bodyParams: [name, orderName, courierLabel(courier), tracking],
+    buttonParam: trackingSlug(tracking),
+    fallback: { template: 'shanthi_order_shipped', bodyParams: oldParams },
+    tracking: { number: tracking, url: trackingUrl, courier },
   }
 }

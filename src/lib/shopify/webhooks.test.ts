@@ -82,6 +82,13 @@ describe('registerProductWebhooks', () => {
     // Only our own stale endpoint is replaced; the worker's hook (w1) survives
     // and wacrm still gets its own ORDERS_CREATE subscription alongside it.
     expect(deleted).toEqual(['w2'])
-    expect(created).toEqual(['ORDERS_CREATE', 'ORDERS_PAID', 'ORDERS_FULFILLED', 'ORDERS_CANCELLED'])
+    expect(created).toEqual([
+      'ORDERS_CREATE',
+      'ORDERS_PAID',
+      'ORDERS_FULFILLED',
+      'ORDERS_CANCELLED',
+      'FULFILLMENTS_CREATE',
+      'FULFILLMENTS_UPDATE',
+    ])
   })
 })

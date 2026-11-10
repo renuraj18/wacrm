@@ -14,7 +14,14 @@ import { parseInternationalPhone } from '@/lib/whatsapp/phone-utils'
 // than guessed at, because a wrong guess messages a stranger.
 // ============================================================
 
-export const ORDER_WEBHOOK_TOPICS = ['ORDERS_CREATE', 'ORDERS_PAID', 'ORDERS_FULFILLED', 'ORDERS_CANCELLED'] as const
+export const ORDER_WEBHOOK_TOPICS = [
+  'ORDERS_CREATE',
+  'ORDERS_PAID',
+  'ORDERS_FULFILLED',
+  'ORDERS_CANCELLED',
+  'FULFILLMENTS_CREATE',
+  'FULFILLMENTS_UPDATE',
+] as const
 
 /** `X-Shopify-Topic` header → the automation trigger it fires. */
 export const ORDER_TOPIC_TRIGGERS: Record<string, AutomationTriggerType> = {
