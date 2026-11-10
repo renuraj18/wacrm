@@ -31,6 +31,8 @@ const tablesWithoutDomainData = new Set([
   // WhatsApp store carts and the photo cache (migrations 068, 069): both expire and aren't business records.
   "shopify_store_carts",
   "whatsapp_media_cache",
+  // Per-account retention period (migration 072): a setting, not business data.
+  "message_retention",
 ]);
 
 function accountScopedTables(): Set<string> {
