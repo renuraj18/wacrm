@@ -200,7 +200,7 @@ function productCards(
   }
   const cards = sellers.slice(0, 10).map((p) => ({
     image: p.image ?? '',
-    text: `*${cleanTitle(p.title)}*\n${priceLine(p.variants.nodes, p.priceRangeV2.minVariantPrice.amount)}`,
+    text: cardText(p),
     buttons: [{ id: ids.add(variantIdOf(p)), title: 'Add to cart' }, { id: ids.product(numericId(p.id)), title: 'Details' }],
   }))
   // Only collections page with a collection id; new arrivals and best sellers have no "More" yet.
@@ -316,6 +316,16 @@ export async function variantStock(deps: StoreDeps, variantId: string): Promise<
       price: Number(v.price),
     },
   }
+}
+
+/** Carousel card text: name, price and the product's page on the website (WhatsApp allows 160 characters). */
+function cardText(p: StoreProduct): string {
+  const price = priceLine(p.variants.nodes, p.priceRangeV2.minVariantPrice.amount)
+  const site = p.onlineStoreUrl ? `\n${p.onlineStoreUrl}` : ''
+  // Shorten the name, never the link.
+  const room = 160 - price.length - site.length - 4
+  const name = cleanTitle(p.title).slice(0, Math.max(10, room))
+  return `*${name}*\n${price}${site}`
 }
 
 function numericId(gid: string): string {
