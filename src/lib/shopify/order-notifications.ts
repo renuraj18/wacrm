@@ -40,7 +40,7 @@ export interface OrderNotificationOrder {
 export interface OrderNotificationJob {
   /** Send-once key; the same key is never sent twice. */
   dedupeKey: string
-  template: 'shanthi_order_placed' | 'shanthi_order_cancelled' | 'shanthi_order_shipped_v2' | 'shanthi_order_shipped'
+  template: 'shanthi_order_placed' | 'shanthi_order_cancelled' | 'shanthi_order_shipped_v3' | 'shanthi_order_shipped_v2'
   /** Digits-only, Meta form. */
   to: string
   bodyParams: string[]
@@ -282,8 +282,8 @@ export function trackingSlug(tracking: string | null | undefined): string {
 /**
  * The shipped message for one fulfillment, or null when there is nothing to
  * send yet (cancelled/failed fulfillment, or no tracking number yet).
- * Uses shanthi_order_shipped_v2 (names the courier) and falls back to the
- * original template until v2 is approved.
+ * Uses shanthi_order_shipped_v3 (its "Track my parcel" button points at
+ * wacrm's /track page) and falls back to v2 (the relay's /track link).
  */
 export function buildFulfillmentNotification(
   f: FulfillmentPayload,
@@ -300,15 +300,15 @@ export function buildFulfillmentNotification(
   const orderName = String(f.name ?? '').replace(/\.\d+$/, '') // "#1001.1" → "#1001"
   const trackingUrl = f.tracking_url || f.tracking_urls?.[0] || null
   const courier = cleanText(f.tracking_company) || ctx.orderCourier || null
-  const oldParams = [name, orderName, tracking]
+  const bodyParams = [name, orderName, courierLabel(courier), tracking]
 
   return {
     dedupeKey: `shipped:${f.order_id}:${tracking}`,
-    template: 'shanthi_order_shipped_v2',
+    template: 'shanthi_order_shipped_v3',
     to,
-    bodyParams: [name, orderName, courierLabel(courier), tracking],
+    bodyParams,
     buttonParam: trackingSlug(tracking),
-    fallback: { template: 'shanthi_order_shipped', bodyParams: oldParams },
+    fallback: { template: 'shanthi_order_shipped_v2', bodyParams },
     tracking: { number: tracking, url: trackingUrl, courier },
   }
 }

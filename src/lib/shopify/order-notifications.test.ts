@@ -143,14 +143,14 @@ describe('shipped (fulfillments)', () => {
   }
   const noCtx = { reseller: null, orderCourier: null }
 
-  it('names the courier and uses the v2 template, with the old one as fallback', () => {
+  it('names the courier and uses the v3 template, with v2 as fallback', () => {
     expect(buildFulfillmentNotification(parcel, noCtx)).toEqual({
       dedupeKey: 'shipped:1001:DT123456',
-      template: 'shanthi_order_shipped_v2',
+      template: 'shanthi_order_shipped_v3',
       to: '919632982245',
       bodyParams: ['Priya', '#1001', 'DTDC', 'DT123456'],
       buttonParam: 'DT123456',
-      fallback: { template: 'shanthi_order_shipped', bodyParams: ['Priya', '#1001', 'DT123456'] },
+      fallback: { template: 'shanthi_order_shipped_v2', bodyParams: ['Priya', '#1001', 'DTDC', 'DT123456'] },
       tracking: { number: 'DT123456', url: null, courier: 'DTDC' },
     })
   })
