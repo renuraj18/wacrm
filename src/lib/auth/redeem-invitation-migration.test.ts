@@ -18,6 +18,10 @@ const tablesWithoutDomainData = new Set([
   // an account. It cascades away with the old account and the mobile
   // app re-registers on its next launch.
   "push_devices",
+  // Shopify webhook delivery ids, kept so retries aren't acted on twice.
+  // Service-role only and not business data: it cascades away with the
+  // old account (migration 063).
+  "shopify_webhook_events",
 ]);
 
 function accountScopedTables(): Set<string> {
