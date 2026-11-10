@@ -33,6 +33,7 @@ export function buildCarouselPayload(to: string, bodyText: string, cards: Carous
       throw new Error(`Card ${i + 1} has ${c.buttons.length} buttons; every card needs ${buttonCount}`)
     }
   }
+  const linkCard = cards.every((c) => c.buttons.length === 1 && 'url' in c.buttons[0])
   return {
     messaging_product: 'whatsapp',
     recipient_type: 'individual',
@@ -47,19 +48,22 @@ export function buildCarouselPayload(to: string, bodyText: string, cards: Carous
           type: 'cta_url',
           header: { type: 'image', image: c.image },
           ...(c.text ? { body: { text: c.text.slice(0, CAROUSEL_CARD_TEXT_MAX) } } : {}),
-          action: {
-            buttons: c.buttons.map((b) =>
-              'url' in b
-                ? {
-                    type: 'cta_url',
-                    cta_url: { display_text: b.title.slice(0, CAROUSEL_BUTTON_TITLE_MAX), url: b.url },
-                  }
-                : {
-                    type: 'quick_reply',
-                    quick_reply: { id: b.id.slice(0, 256), title: b.title.slice(0, CAROUSEL_BUTTON_TITLE_MAX) },
-                  },
-            ),
-          },
+          // A link card has one CTA URL button: action.name "cta_url" with its parameters.
+          // Quick-reply cards list their buttons instead. Meta doesn't allow the two mixed.
+          action: linkCard
+            ? {
+                name: 'cta_url',
+                parameters: {
+                  display_text: c.buttons[0].title.slice(0, CAROUSEL_BUTTON_TITLE_MAX),
+                  url: (c.buttons[0] as { url: string }).url,
+                },
+              }
+            : {
+                buttons: c.buttons.map((b) => ({
+                  type: 'quick_reply',
+                  quick_reply: { id: (b as { id: string }).id.slice(0, 256), title: b.title.slice(0, CAROUSEL_BUTTON_TITLE_MAX) },
+                })),
+              },
         })),
       },
     },
