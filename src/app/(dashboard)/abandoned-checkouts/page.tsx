@@ -18,7 +18,12 @@ interface Checkout {
   items: string;
   total: string;
   createdAt: string;
+  updatedAt: string;
   remindedAt: string | null;
+}
+
+function formatTime(iso: string): string {
+  return new Date(iso).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 }
 
 export default function AbandonedCheckoutsPage() {
@@ -104,7 +109,11 @@ export default function AbandonedCheckoutsPage() {
             <div className="min-w-0 flex-1 text-sm">
               <p className="font-medium text-foreground">{c.customerName || "Customer"} · {c.phone ?? "no phone"}</p>
               <p className="truncate text-muted-foreground">{c.items}</p>
-              <p className="text-muted-foreground">₹{c.total} · {c.name}{c.remindedAt ? ` · reminded ${new Date(c.remindedAt).toLocaleString()}` : ""}</p>
+              <p className="text-muted-foreground">₹{c.total} · {c.name}</p>
+              <p className="text-xs text-muted-foreground">
+                Started {formatTime(c.createdAt)} · Last activity {formatTime(c.updatedAt)}
+                {c.remindedAt ? ` · Reminded ${formatTime(c.remindedAt)}` : ""}
+              </p>
             </div>
           </label>
         ))}
