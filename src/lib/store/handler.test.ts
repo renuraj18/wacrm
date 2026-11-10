@@ -71,6 +71,9 @@ function fakeShopify(collections: { id: string; title: string; ticked: boolean }
       if (!/^gid:\/\/shopify\/Collection\/\d+$/.test(id)) throw new Error(`Invalid id: ${id}`)
       return { collection: { title: 'Kolam Sarees', products: { pageInfo: { hasNextPage: false }, edges: products.map((p, i) => ({ cursor: String(i), node: p })) } } }
     }
+    if (query.includes('query: $q)')) {
+      return { products: { pageInfo: { hasNextPage: false }, edges: products.map((p, i) => ({ cursor: String(i), node: p })) } }
+    }
     if (query.includes('sortKey: CREATED_AT')) {
       return { products: { pageInfo: { hasNextPage: false }, edges: products.map((p, i) => ({ cursor: String(i), node: p })) } }
     }
@@ -197,7 +200,7 @@ describe('collection matching by name', () => {
 })
 
 describe('ambiguous collection words', () => {
-  it('a word shared equally by two collections asks which one', async () => {
+  it('a word shared by two collections shows every saree with that word', async () => {
     const two = fakeShopify(
       [
         { id: 'gid://shopify/Collection/30', title: 'Silk Kanchi', ticked: false },
@@ -207,10 +210,7 @@ describe('ambiguous collection words', () => {
     )
     const { d } = deps(two)
     const [reply] = (await routeStore(d, { phone: PHONE, text: 'silk' })) as StoreReply[]
-    expect(reply.kind).toBe('text')
-    if (reply.kind !== 'text') return
-    expect(reply.text).toContain('Which one')
-    expect(reply.buttons?.length).toBe(2)
+    expect(reply.kind).toBe('carousel')
   })
 })
 

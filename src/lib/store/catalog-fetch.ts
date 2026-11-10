@@ -170,6 +170,25 @@ export async function fetchCollectionProducts(
   return { title, products, next }
 }
 
+const TITLE_SEARCH = `query($q: String!, $after: String) {
+  products(first: 25, after: $after, sortKey: BEST_SELLING, query: $q) {
+    pageInfo { hasNextPage } edges { cursor node { ${PRODUCT_FIELDS} } } } }`
+
+/** Buyable sarees whose title has every one of these words (one Shopify query, not one per collection). */
+export async function fetchByTitleWords(
+  run: GraphqlRunner,
+  words: string[],
+  after: string | null,
+  want = 10,
+): Promise<{ products: StoreProduct[]; next: string | null }> {
+  const safe = words.map((w) => w.replace(/[^a-z]/gi, '')).filter(Boolean)
+  const q = `status:active AND ${safe.map((w) => `title:*${w}*`).join(' AND ')}`
+  return collectInStock(async (cursor) => {
+    const data = await run<{ products: ProductConnection }>(TITLE_SEARCH, { q, after: cursor })
+    return data.products
+  }, after, want, 2)
+}
+
 /** Newest active products first, keeping only ones that can be bought. Fewer pages than best sellers. */
 export async function fetchNewArrivals(
   run: GraphqlRunner,

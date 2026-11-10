@@ -13,6 +13,7 @@ import type { GraphqlRunner } from '@/lib/shopify/client'
 import {
   fetchAllCollections,
   fetchBestSellers,
+  fetchByTitleWords,
   fetchCollectionProducts,
   fetchNewArrivals,
   fetchTickedCollections,
@@ -64,7 +65,7 @@ export async function routeStore(deps: StoreDeps, msg: StoreMessage): Promise<St
   if (NEW_WORDS.test(text)) return dispatch(deps, msg.phone, { kind: 'newArrivals', after: null })
   const named = await collectionChoices(deps, text)
   if (named.length === 1) return dispatch(deps, msg.phone, { kind: 'collection', collectionId: numericId(named[0].id), offset: 0 })
-  if (named.length > 1) return chooseCollection(named)
+  if (named.length > 1) return sareesWithWords(deps, text)
   if (SHOP_WORDS.test(text)) return dispatch(deps, msg.phone, { kind: 'menu' })
   return null
 }
@@ -113,13 +114,11 @@ export async function collectionChoices(deps: StoreDeps, text: string): Promise<
   return tied.map((x) => x.c)
 }
 
-function chooseCollection(choices: { id: string; title: string }[]): StoreReply[] {
-  const shown = choices.slice(0, 3)
-  return [{
-    kind: 'text',
-    text: `Which one do you mean?\n${choices.map((c) => `• ${c.title}`).join('\n')}`,
-    buttons: shown.map((c) => ({ id: ids.collection(numericId(c.id), 0), title: c.title.slice(0, 20) })),
-  }]
+/** A word shared by several collections ("soft silk"): every saree with those words in its title. */
+async function sareesWithWords(deps: StoreDeps, text: string): Promise<StoreReply[]> {
+  const words = (text.toLowerCase().match(/[a-z]+/g) ?? []).filter((w) => w.length >= 4 && !STOP_WORDS.has(w))
+  const page = await fetchByTitleWords(deps.run, words, null)
+  return productCards(deps, `${words.join(' ')} sarees`, page)
 }
 
 type Action = NonNullable<ReturnType<typeof parseStoreId>> | { kind: 'menu' }
