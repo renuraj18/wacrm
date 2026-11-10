@@ -248,6 +248,7 @@ export interface Message {
   media_type?: string | null;
   template_name?: string;
   message_id?: string;
+  client_request_id?: string | null;
   status: MessageStatus;
   created_at: string;
   reply_to_message_id?: string;

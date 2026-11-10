@@ -13,6 +13,10 @@ import {
 } from '@/lib/whatsapp/send-message'
 import { isUniqueViolation } from '@/lib/contacts/dedupe'
 import { getT } from '@/lib/i18n/translate'
+import {
+  ChatMediaValidationError,
+  validateChatMedia,
+} from '@/lib/whatsapp/validate-chat-media'
 
 const t = getT('Api')
 
@@ -62,6 +66,7 @@ export async function POST(request: Request) {
       template_message_params,
       interactive_payload,
       reply_to_message_id,
+      client_request_id,
     } = body
 
     if ((!conversationIdInput && !contact_id) || !message_type) {
@@ -71,6 +76,28 @@ export async function POST(request: Request) {
             t('send.idsRequired'),
         },
         { status: 400 }
+      )
+    }
+
+    const hasClientRequestId =
+      client_request_id !== undefined && client_request_id !== null
+    const validClientRequestId =
+      typeof client_request_id === 'string' &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        client_request_id,
+      )
+    const requestIdRequired = ['video', 'document'].includes(message_type)
+    if (
+      (requestIdRequired && !validClientRequestId) ||
+      (hasClientRequestId && !validClientRequestId)
+    ) {
+      return NextResponse.json(
+        {
+          error: requestIdRequired
+            ? 'client_request_id must be a UUID for video and document sends'
+            : 'client_request_id must be a UUID',
+        },
+        { status: 400 },
       )
     }
 
@@ -152,6 +179,17 @@ export async function POST(request: Request) {
       )
     }
 
+    if (message_type === 'video' || message_type === 'document') {
+      try {
+        await validateChatMedia(supabase, accountId, message_type, media_url)
+      } catch (err) {
+        if (err instanceof ChatMediaValidationError) {
+          return NextResponse.json({ error: err.message }, { status: err.status })
+        }
+        throw err
+      }
+    }
+
     // Delegate to the shared send core (validates, sends to Meta with
     // phone-variant retry, persists, pauses active flow runs). Its
     // `SendMessageError` carries a machine code + HTTP status; the
@@ -169,6 +207,7 @@ export async function POST(request: Request) {
         templateMessageParams: template_message_params,
         interactivePayload: interactive_payload,
         replyToMessageId: reply_to_message_id,
+        clientRequestId: client_request_id,
         senderId: userId,
       })
 

@@ -644,6 +644,7 @@ export function MessageThread({
           : payload.caption;
 
       const tempId = newTempMessageId();
+      const clientRequestId = crypto.randomUUID();
       const optimisticMsg: Message = {
         id: tempId,
         conversation_id: conversation.id,
@@ -669,6 +670,7 @@ export function MessageThread({
             content_text: contentText,
             filename: payload.filename,
             reply_to_message_id: payload.replyToId,
+            client_request_id: clientRequestId,
           }),
         });
 
@@ -679,11 +681,9 @@ export function MessageThread({
           console.error("Failed to send media:", reason);
           toast.error(t("sendFailed", { reason }));
           onUpdateMessage(tempId, { status: "failed" });
-          // The upload never reached the recipient — GC the orphaned
-          // object rather than leaving it in the public bucket forever.
-          // An empty path means an external URL (a Shopify product image)
-          // that we never uploaded, so there is nothing to clean up.
-          if (payload.path) {
+          // Keep the object if the response is ambiguous or a request with
+          // this idempotency key is still in flight; Meta may already have it.
+          if (payload.path && res.status < 500 && res.status !== 409) {
             void deleteAccountMedia(CHAT_MEDIA_BUCKET, payload.path).catch(() => {});
           }
           return;
@@ -695,9 +695,6 @@ export function MessageThread({
         const reason = err instanceof Error ? err.message : t("networkError");
         toast.error(t("sendFailed", { reason }));
         onUpdateMessage(tempId, { status: "failed" });
-        if (payload.path) {
-          void deleteAccountMedia(CHAT_MEDIA_BUCKET, payload.path).catch(() => {});
-        }
       }
     },
     [conversation, onNewMessage, onUpdateMessage, t],

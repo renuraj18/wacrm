@@ -27,6 +27,7 @@ import {
   sendMediaMessage,
   sendInteractiveButtons,
   sendInteractiveList,
+  MetaApiError,
   type MediaKind,
 } from '@/lib/whatsapp/meta-api';
 import {
@@ -89,6 +90,8 @@ export interface SendMessageParams {
   /** Structured payload for `messageType === 'interactive'`. */
   interactivePayload?: InteractiveMessagePayload | null;
   replyToMessageId?: string | null;
+  /** Stable UUID used to deduplicate a retried dashboard media send. */
+  clientRequestId?: string | null;
   senderId?: string | null;
 }
 
@@ -204,6 +207,7 @@ export async function sendMessageToConversation(
     templateMessageParams,
     interactivePayload,
     replyToMessageId,
+    clientRequestId,
   } = params;
 
   if (!conversationId) {
@@ -343,6 +347,119 @@ export async function sendMessageToConversation(
     sendLanguage = resolved.language;
   }
 
+  // Interactive messages persist the body as content_text (so the
+  // conversation-list preview reads sensibly) plus the full structured
+  // payload so the thread can re-render the buttons / rows. Templates
+  // persist the substituted body; see issue #483.
+  const persistedText =
+    messageType === 'interactive'
+      ? interactivePayload!.body
+      : messageType === 'template'
+        ? templateContentText(
+            templateRow,
+            templateBodyParams(templateParams, templateMessageParams),
+            contentText
+          )
+        : (contentText ?? null);
+  const persistedMediaUrl =
+    messageType === 'template'
+      ? templateHeaderMediaUrl(templateRow, templateMessageParams)
+      : mediaUrl || null;
+
+  const pendingMessage = {
+    conversation_id: conversationId,
+    sender_type: 'agent',
+    sender_id: senderId ?? null,
+    content_type: messageType,
+    content_text: persistedText,
+    media_url: persistedMediaUrl,
+    template_name: templateName || null,
+    interactive_payload:
+      messageType === 'interactive' ? interactivePayload : null,
+    reply_to_message_id: replyToMessageId || null,
+  };
+
+  let claimedMessageId: string | null = null;
+  if (clientRequestId) {
+    const { data: claim, error: claimError } = await db
+      .from('messages')
+      .insert({
+        ...pendingMessage,
+        client_request_id: clientRequestId,
+        message_id: null,
+        status: 'sending',
+      })
+      .select('id')
+      .single();
+
+    if (claimError?.code === '23505') {
+      const { data: existing, error: lookupError } = await db
+        .from('messages')
+        .select(
+          'id, message_id, status, content_type, content_text, media_url, reply_to_message_id'
+        )
+        .eq('conversation_id', conversationId)
+        .eq('client_request_id', clientRequestId)
+        .maybeSingle();
+
+      if (lookupError || !existing) {
+        throw new SendMessageError(
+          'db_error',
+          'Unable to resolve the existing send request',
+          500
+        );
+      }
+
+      const sameRequest =
+        existing.content_type === pendingMessage.content_type &&
+        existing.content_text === pendingMessage.content_text &&
+        existing.media_url === pendingMessage.media_url &&
+        existing.reply_to_message_id === pendingMessage.reply_to_message_id;
+      if (!sameRequest) {
+        throw new SendMessageError(
+          'idempotency_conflict',
+          'client_request_id was already used for a different message',
+          409
+        );
+      }
+
+      if (
+        ['sent', 'delivered', 'read'].includes(existing.status) &&
+        existing.message_id
+      ) {
+        return {
+          messageId: existing.id,
+          whatsappMessageId: existing.message_id,
+        };
+      }
+
+      if (existing.status === 'failed') {
+        throw new SendMessageError(
+          'send_already_failed',
+          'This send request already failed; use a new client_request_id to send again',
+          409
+        );
+      }
+
+      throw new SendMessageError(
+        'send_in_progress',
+        'This send request is already in progress or its delivery result is unknown',
+        409
+      );
+    }
+
+    if (claimError || !claim) {
+      const message = claimError?.message ?? 'No message row returned';
+      console.error('[send-message] unable to claim send request:', message);
+      throw new SendMessageError(
+        'db_error',
+        `Unable to claim send request: ${message}`,
+        500
+      );
+    }
+    claimedMessageId = claim.id;
+  }
+
   const attempt = async (phone: string): Promise<string> => {
     if (messageType === 'template') {
       const result = await sendTemplateMessage({
@@ -443,6 +560,25 @@ export async function sendMessageToConversation(
     const message =
       err instanceof Error ? err.message : 'Unknown Meta API error';
     console.error('[send-message] Meta send failed for all variants:', message);
+    // A non-2xx response below 500 is a definite Meta rejection. Network
+    // errors and 5xx responses have an ambiguous delivery outcome, so keep
+    // the claim in `sending` and refuse a retry rather than risk a duplicate.
+    if (
+      claimedMessageId &&
+      err instanceof MetaApiError &&
+      err.httpStatus < 500
+    ) {
+      const { error: updateError } = await db
+        .from('messages')
+        .update({ status: 'failed' })
+        .eq('id', claimedMessageId);
+      if (updateError) {
+        console.error(
+          '[send-message] unable to mark claimed send as failed:',
+          updateError.message
+        );
+      }
+    }
     throw new SendMessageError('meta_error', `Meta API error: ${message}`, 502);
   }
 
@@ -456,48 +592,25 @@ export async function sendMessageToConversation(
       .eq('id', contact.id);
   }
 
-  // Persist the sent message. Field names MUST match the messages
-  // schema (see 001_initial_schema.sql).
-  // Interactive messages persist the body as content_text (so the
-  // conversation-list preview reads sensibly) plus the full structured
-  // payload so the thread can re-render the buttons / rows.
-  //
-  // Templates persist the *substituted* body. The composer pre-renders
-  // and posts it as contentText; every other caller (the public API,
-  // most importantly) sends none, and storing null there left the
-  // Inbox rendering an empty bubble — issue #483.
-  const persistedText =
-    messageType === 'interactive'
-      ? interactivePayload!.body
-      : messageType === 'template'
-        ? templateContentText(
-            templateRow,
-            templateBodyParams(templateParams, templateMessageParams),
-            contentText
-          )
-        : (contentText ?? null);
-
-  const { data: messageRecord, error: msgError } = await db
-    .from('messages')
-    .insert({
-      conversation_id: conversationId,
-      sender_type: 'agent',
-      sender_id: senderId ?? null,
-      content_type: messageType,
-      content_text: persistedText,
-      media_url:
-        messageType === 'template'
-          ? templateHeaderMediaUrl(templateRow, templateMessageParams)
-          : mediaUrl || null,
-      template_name: templateName || null,
-      interactive_payload:
-        messageType === 'interactive' ? interactivePayload : null,
-      message_id: waMessageId,
-      status: 'sent',
-      reply_to_message_id: replyToMessageId || null,
-    })
-    .select()
-    .single();
+  // A keyed send already has a durable `sending` row. Updating it records
+  // Meta's result without creating a second message; unkeyed callers keep
+  // the existing insert-after-send behavior.
+  const { data: messageRecord, error: msgError } = claimedMessageId
+    ? await db
+        .from('messages')
+        .update({ message_id: waMessageId, status: 'sent' })
+        .eq('id', claimedMessageId)
+        .select('id')
+        .single()
+    : await db
+        .from('messages')
+        .insert({
+          ...pendingMessage,
+          message_id: waMessageId,
+          status: 'sent',
+        })
+        .select()
+        .single();
 
   if (msgError) {
     console.error('[send-message] error inserting sent message:', msgError);
