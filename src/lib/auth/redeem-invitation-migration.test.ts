@@ -28,6 +28,9 @@ const tablesWithoutDomainData = new Set([
   "shopify_cart_reminders",
   // Parcel tracking targets for the /track page (migration 067): courier and tracking number only.
   "shopify_tracking_links",
+  // WhatsApp store carts and the photo cache (migrations 068, 069): both expire and aren't business records.
+  "shopify_store_carts",
+  "whatsapp_media_cache",
 ]);
 
 function accountScopedTables(): Set<string> {

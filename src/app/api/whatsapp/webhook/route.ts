@@ -22,6 +22,7 @@ import { readCappedBody } from '@/lib/whatsapp/webhook-body'
 import { resumeAwaitingReply, runAutomationsForTrigger } from '@/lib/automations/engine'
 import { dispatchInboundToFlows } from '@/lib/flows/engine'
 import { dispatchInboundToAiReply } from '@/lib/ai/auto-reply'
+import { handleStoreInbound } from '@/lib/store/inbound'
 import { dispatchWebhookEvent } from '@/lib/webhooks/deliver'
 import {
   applyBroadcastRecipientStatus,
@@ -889,7 +890,26 @@ async function processMessage(
   // logging zero steps. `runAutomationsForTrigger` owns its own try/catch
   // and never throws; the `.catch` is belt-and-braces so one trigger
   // type's failure can't skip the rest of the loop.
-  for (const triggerType of automationTriggers) {
+  // WhatsApp store (off unless the account turned it on). When the store
+  // answers, automations and the AI reply stay quiet for this message.
+  const storePhone = contactRecord.phone?.replace(/\D/g, '') ?? ''
+  const storeHandled =
+    contentConsumed || !storePhone
+      ? false
+      : await handleStoreInbound({
+          db: supabaseAdmin(),
+          accountId,
+          conversationId: conversation.id,
+          phone: storePhone,
+          accessToken,
+          text: inboundText,
+          interactiveReplyId: interactiveReplyId ?? null,
+        }).catch((err) => {
+          console.error('[store] inbound failed:', err)
+          return false
+        })
+
+  for (const triggerType of storeHandled ? [] : automationTriggers) {
     await runAutomationsForTrigger({
       accountId,
       triggerType,
@@ -909,7 +929,7 @@ async function processMessage(
   // the account has enabled it. Awaited inside `after()` (same reason as
   // the webhook dispatch below); `dispatchInboundToAiReply` owns its
   // eligibility gates + try/catch and never throws.
-  if (!contentConsumed && !interactiveReplyId && inboundText.trim()) {
+  if (!contentConsumed && !storeHandled && !interactiveReplyId && inboundText.trim()) {
     await dispatchInboundToAiReply({
       accountId,
       conversationId: conversation.id,
