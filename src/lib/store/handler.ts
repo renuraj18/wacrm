@@ -171,7 +171,7 @@ async function menu(deps: StoreDeps): Promise<StoreReply[]> {
     cards: page.map((c) => ({
       image: c.image ?? '',
       text: `*${c.title}*${c.productsCount ? `\n${c.productsCount} designs` : ''}`,
-      buttons: [{ id: ids.collection(numericId(c.id)), title: 'View sarees' }],
+      buttons: [{ url: `${deps.shopUrl}/collections/${c.handle}`, title: 'Shop now' }],
     })),
     next: [{ id: ids.newArrivals(), title: '✨ New arrivals' }, { id: ids.bestSellers(), title: '🔥 Best sellers' }, BTN_CART],
   }]
