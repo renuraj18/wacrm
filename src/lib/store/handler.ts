@@ -13,6 +13,7 @@ import type { GraphqlRunner } from '@/lib/shopify/client'
 import {
   fetchBestSellers,
   fetchCollectionProducts,
+  fetchNewArrivals,
   fetchTickedCollections,
   type StoreProduct,
   type TickedCollection,
@@ -87,7 +88,7 @@ async function dispatch(deps: StoreDeps, phone: string, action: Action): Promise
     case 'collection':
       return collectionCards(deps, action.collectionId, action.offset)
     case 'newArrivals':
-      return productCards(deps, 'New arrivals', await fetchBestSellers(deps.run, 'all-products', action.after))
+      return productCards(deps, 'New arrivals', await fetchNewArrivals(deps.run, action.after))
     case 'bestSellers':
       return productCards(deps, 'Best sellers', await fetchBestSellers(deps.run, 'all-products', action.after))
     case 'product':

@@ -68,6 +68,9 @@ function fakeShopify(collections: { id: string; title: string; ticked: boolean }
     if (query.includes('collection(id')) {
       return { collection: { title: 'Kolam Sarees', products: { pageInfo: { hasNextPage: false }, edges: products.map((p, i) => ({ cursor: String(i), node: p })) } } }
     }
+    if (query.includes('sortKey: CREATED_AT')) {
+      return { products: { pageInfo: { hasNextPage: false }, edges: products.map((p, i) => ({ cursor: String(i), node: p })) } }
+    }
     if (query.includes('collections(first: 1')) {
       return { collections: { nodes: [{ products: { pageInfo: { hasNextPage: false }, edges: products.map((p, i) => ({ cursor: String(i), node: p })) } }] } }
     }
@@ -139,5 +142,19 @@ describe('routeStore', () => {
     const { d, carts } = deps(shopify)
     await routeStore(d, { phone: PHONE, catalogItems: [{ retailer_id: 'shopify_IN_1_11', quantity: 2 }] })
     expect(carts.get(PHONE)?.[0].quantity).toBe(2)
+  })
+})
+
+describe('new arrivals', () => {
+  it('reads the newest products, not the best-seller list', async () => {
+    const calls: string[] = []
+    const spy = async (query: string, vars: Record<string, unknown> = {}) => {
+      calls.push(query.includes('CREATED_AT') ? 'new' : 'other')
+      return shopify(query, vars)
+    }
+    const { d } = deps(spy as unknown as ReturnType<typeof fakeShopify>)
+    await routeStore(d, { phone: PHONE, buttonId: ids.newArrivals() })
+    expect(calls).toContain('new')
+    expect(calls).not.toContain('other')
   })
 })

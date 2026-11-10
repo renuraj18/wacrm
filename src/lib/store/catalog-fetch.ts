@@ -32,6 +32,10 @@ const COLLECTION_PRODUCTS = `query($id: ID!, $after: String) {
     products(first: 25, after: $after, sortKey: BEST_SELLING) {
       pageInfo { hasNextPage } edges { cursor node { ${PRODUCT_FIELDS} } } } } }`
 
+const NEW_PRODUCTS = `query($after: String) {
+  products(first: 25, after: $after, sortKey: CREATED_AT, reverse: true, query: "status:active") {
+    pageInfo { hasNextPage } edges { cursor node { ${PRODUCT_FIELDS} } } } }`
+
 const BEST_SELLERS = `query($q: String!, $after: String) {
   collections(first: 1, query: $q) { nodes { title
     products(first: 25, after: $after, sortKey: BEST_SELLING) {
@@ -117,10 +121,11 @@ export async function collectInStock(
   fetchPage: (cursor: string | null) => Promise<ProductConnection | null>,
   start: string | null,
   want: number,
+  maxPages = MAX_PAGES,
 ): Promise<{ products: StoreProduct[]; next: string | null }> {
   const products: StoreProduct[] = []
   let cursor = start
-  for (let page = 0; page < MAX_PAGES; page++) {
+  for (let page = 0; page < maxPages; page++) {
     const conn = await fetchPage(cursor)
     if (!conn) break
     for (const e of conn.edges) {
@@ -153,6 +158,18 @@ export async function fetchCollectionProducts(
     return data.collection.products
   }, after, want)
   return { title, products, next }
+}
+
+/** Newest active products first, keeping only ones that can be bought. Fewer pages than best sellers. */
+export async function fetchNewArrivals(
+  run: GraphqlRunner,
+  after: string | null,
+  want = 10,
+): Promise<{ products: StoreProduct[]; next: string | null }> {
+  return collectInStock(async (cursor) => {
+    const data = await run<{ products: ProductConnection }>(NEW_PRODUCTS, { after: cursor })
+    return data.products
+  }, after, want, 2)
 }
 
 export async function fetchBestSellers(

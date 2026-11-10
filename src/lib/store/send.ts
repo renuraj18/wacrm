@@ -13,6 +13,7 @@ import { cachedMediaIds, forgetMediaIds, rememberMediaIds } from './storage'
 import type { Button, StoreReply } from './handler'
 
 const GRAPH = 'https://graph.facebook.com/v21.0'
+const UPLOAD_CONCURRENCY = 4
 
 export interface StoreSendContext {
   db: SupabaseClient
@@ -158,13 +159,23 @@ async function sendCarousel(
 
   // Upload the photos WhatsApp doesn't have yet, so the next customer gets them by id.
   const missing = urls.filter((u) => !ids.has(u))
+  // In parallel (a few at a time), so a carousel of ten isn't ten uploads in a row.
   const uploaded: { url: string; mediaId: string }[] = []
-  for (const url of [...new Set(missing)]) {
-    try {
-      uploaded.push({ url, mediaId: await uploadPhoto(ctx, url) })
-    } catch (err) {
-      console.warn(`[store] photo upload failed for ${url}:`, err)
-    }
+  const unique = [...new Set(missing)]
+  for (let i = 0; i < unique.length; i += UPLOAD_CONCURRENCY) {
+    const batch = unique.slice(i, i + UPLOAD_CONCURRENCY)
+    const results = await Promise.all(
+      batch.map((url) =>
+        uploadPhoto(ctx, url).then(
+          (mediaId) => ({ url, mediaId }),
+          (err) => {
+            console.warn(`[store] photo upload failed for ${url}:`, err)
+            return null
+          },
+        ),
+      ),
+    )
+    for (const r of results) if (r) uploaded.push(r)
   }
   await rememberMediaIds(ctx.db, ctx.accountId, uploaded.map((u) => ({ url: u.url, mediaId: u.mediaId })))
 }
