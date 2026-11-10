@@ -113,19 +113,6 @@ export async function sendStoreReply(ctx: StoreSendContext, reply: StoreReply): 
     await sendText(ctx, reply.text, reply.buttons ?? [])
     return
   }
-  if (reply.kind === 'image' && reply.buttons.length) {
-    // The photo is the header of a button message, so the buttons sit under the saree they belong to.
-    const { messageId } = await sendInteractiveButtons({
-      phoneNumberId: ctx.phoneNumberId,
-      accessToken: ctx.accessToken,
-      to: ctx.phone,
-      bodyText: reply.text,
-      headerImageLink: reply.image,
-      buttons: reply.buttons,
-    })
-    await record(ctx, { contentText: reply.text, waMessageId: messageId, interactive: { body: reply.text, buttons: reply.buttons } })
-    return
-  }
   if (reply.kind === 'image') {
     const { messageId } = await sendMediaMessage({
       phoneNumberId: ctx.phoneNumberId,

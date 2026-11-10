@@ -119,10 +119,10 @@ describe('routeStore', () => {
 
   it('a collection name in a message opens that collection', async () => {
     const { d } = deps(shopify)
-    const replies = (await routeStore(d, { phone: PHONE, text: 'kolam price?' })) as StoreReply[]
-    expect(replies[0].kind).toBe('text')
-    expect(replies[0].kind === 'text' && replies[0].text).toContain('Kolam Sarees')
-    expect(replies.some((r) => r.kind === 'image')).toBe(true)
+    const [reply] = (await routeStore(d, { phone: PHONE, text: 'kolam price?' })) as StoreReply[]
+    expect(reply.kind).toBe('carousel')
+    if (reply.kind !== 'carousel') return
+    expect(reply.text).toContain('Kolam Sarees')
   })
 
   it('adding a saree puts it in the cart, and checkout gives the cart link', async () => {
@@ -172,10 +172,10 @@ describe('collection names', () => {
       [product('1', 'Kolam Saree', 5), product('3', 'Kolam Silk', 4)],
     )
     const { d } = deps(unticked)
-    const replies = (await routeStore(d, { phone: PHONE, text: 'kolam' })) as StoreReply[]
-    expect(replies.some((r) => r.kind === 'image')).toBe(true)
-    const again = (await routeStore(d, { phone: PHONE, text: 'kolam sarees' })) as StoreReply[]
-    expect(again.some((r) => r.kind === 'image')).toBe(true)
+    const [reply] = (await routeStore(d, { phone: PHONE, text: 'kolam' })) as StoreReply[]
+    expect(reply.kind).toBe('carousel')
+    const [again] = (await routeStore(d, { phone: PHONE, text: 'kolam sarees' })) as StoreReply[]
+    expect(again.kind).toBe('carousel')
   })
 })
 
@@ -209,8 +209,8 @@ describe('ambiguous collection words', () => {
       [product('1', 'Silk Saree', 5), product('3', 'Silk Two', 4)],
     )
     const { d } = deps(two)
-    const replies = (await routeStore(d, { phone: PHONE, text: 'silk' })) as StoreReply[]
-    expect(replies.some((r) => r.kind === 'image')).toBe(true)
+    const [reply] = (await routeStore(d, { phone: PHONE, text: 'silk' })) as StoreReply[]
+    expect(reply.kind).toBe('carousel')
   })
 })
 
@@ -221,8 +221,8 @@ describe('opening a collection by name', () => {
       [product('1', 'Kolam Saree', 5), product('3', 'Kolam Silk', 4)],
     )
     const { d } = deps(one)
-    const replies = (await routeStore(d, { phone: PHONE, text: 'kolam' })) as StoreReply[]
-    expect(replies.some((r) => r.kind === 'image')).toBe(true)
+    const [reply] = (await routeStore(d, { phone: PHONE, text: 'kolam' })) as StoreReply[]
+    expect(reply.kind).toBe('carousel')
   })
 })
 
