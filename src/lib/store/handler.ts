@@ -11,6 +11,7 @@ import { ids, parseStoreId } from './ids'
 import { inStock, MAX_QTY, priceLine, stockOf, variantName } from './catalog-rules'
 import type { GraphqlRunner } from '@/lib/shopify/client'
 import {
+  fetchAllCollections,
   fetchBestSellers,
   fetchCollectionProducts,
   fetchNewArrivals,
@@ -67,11 +68,14 @@ export async function routeStore(deps: StoreDeps, msg: StoreMessage): Promise<St
   return null
 }
 
-/** The ticked collection whose title (or handle) appears in the message; the longest name wins. */
-export async function collectionNamedIn(deps: StoreDeps, text: string): Promise<TickedCollection | null> {
+/**
+ * The published collection named in the message ("kolam", "kolam sarees").
+ * Ticking isn't needed for this, same as the relay. The longest name wins.
+ */
+export async function collectionNamedIn(deps: StoreDeps, text: string): Promise<{ id: string; title: string } | null> {
   const lower = text.toLowerCase()
-  const cols = await fetchTickedCollections(deps.run, deps.storeOrder)
-  let best: TickedCollection | null = null
+  const cols = await fetchAllCollections(deps.run)
+  let best: { id: string; title: string } | null = null
   for (const c of cols) {
     const names = [c.title.toLowerCase(), c.title.toLowerCase().replace(/\s*sarees?$/, '')].filter((n) => n.length >= 3)
     if (names.some((n) => lower.includes(n)) && (!best || c.title.length > best.title.length)) best = c

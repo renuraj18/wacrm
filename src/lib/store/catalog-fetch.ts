@@ -27,6 +27,11 @@ const TICKED_COLLECTIONS = `query {
       metafield(namespace: "${BEST_FIELD.namespace}", key: "${BEST_FIELD.key}") { value }
       image { url(transform: {maxWidth: 600, preferredContentType: JPG}) } } } }`
 
+/** Every published collection, for matching a name in a message (ticking isn't needed for that). */
+const ALL_COLLECTIONS = `query {
+  collections(first: 250, query: "published_status:published", sortKey: TITLE) {
+    nodes { id title handle } } }`
+
 const COLLECTION_PRODUCTS = `query($id: ID!, $after: String) {
   collection(id: $id) { title
     products(first: 25, after: $after, sortKey: BEST_SELLING) {
@@ -77,6 +82,11 @@ export function orderTicked(collections: RawCollection[], storeOrder: string[]):
     return i === -1 ? Number.MAX_SAFE_INTEGER : i
   }
   return ticked.sort((a, b) => rank(a.handle) - rank(b.handle) || a.title.localeCompare(b.title))
+}
+
+export async function fetchAllCollections(run: GraphqlRunner): Promise<{ id: string; title: string; handle: string }[]> {
+  const data = await run<{ collections: { nodes: { id: string; title: string; handle: string }[] } }>(ALL_COLLECTIONS)
+  return data.collections.nodes
 }
 
 export async function fetchTickedCollections(

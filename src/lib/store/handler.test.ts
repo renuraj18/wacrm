@@ -158,3 +158,18 @@ describe('new arrivals', () => {
     expect(calls).not.toContain('other')
   })
 })
+
+describe('collection names', () => {
+  it('"kolam" shows the Kolam Sarees cards even when the collection is not ticked', async () => {
+    const unticked = fakeShopify(
+      [{ id: 'gid://shopify/Collection/10', title: 'Kolam Sarees', ticked: false }],
+      [product('1', 'Kolam Saree', 5), product('3', 'Kolam Silk', 4)],
+    )
+    const { d } = deps(unticked)
+    const [reply] = (await routeStore(d, { phone: PHONE, text: 'kolam' })) as StoreReply[]
+    expect(reply.kind).toBe('carousel')
+    const [again] = (await routeStore(d, { phone: PHONE, text: 'kolam sarees' })) as StoreReply[]
+    expect(again.kind).toBe('carousel')
+  })
+})
+
