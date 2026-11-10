@@ -87,6 +87,8 @@ function fakeShopify(collections: { id: string; title: string; ticked: boolean }
 function deps(shopify: ReturnType<typeof fakeShopify>) {
   const carts = new Map<string, CartLine[]>()
   const d: StoreDeps = {
+    // A new scope per test, so one test's cached collections don't leak into another.
+    cacheScope: `test-${Math.random()}`,
     run: shopify as unknown as StoreDeps['run'],
     shopUrl: 'https://shop.example',
     storeOrder: [],

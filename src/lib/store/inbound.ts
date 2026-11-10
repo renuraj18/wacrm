@@ -45,6 +45,7 @@ export async function handleStoreInbound(args: StoreInbound): Promise<boolean> {
   if (!phoneNumberId) return false
 
   const deps: StoreDeps = {
+    cacheScope: args.accountId,
     run: await connectionGraphql(args.db, conn),
     shopUrl: process.env.STORE_SHOP_URL || 'https://shanthiboutique.com',
     storeOrder: (process.env.STORE_COLLECTIONS || DEFAULT_STORE_COLLECTIONS)

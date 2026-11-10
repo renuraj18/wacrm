@@ -8,6 +8,7 @@
 import { addToCart, cartText, cartTotal, reconcileCart, removeFromCart, type CartLine } from './cart'
 import { checkoutUrl, variantFromRetailerId } from './checkout'
 import { ids, parseStoreId } from './ids'
+import { cached, COLLECTIONS_TTL_MS } from './cache'
 import { inStock, MAX_QTY, priceLine, stockOf, variantName } from './catalog-rules'
 import type { GraphqlRunner } from '@/lib/shopify/client'
 import {
@@ -39,6 +40,8 @@ export type StoreReply =
   | { kind: 'carousel'; text: string; cards: { image: string; text: string; buttons: Button[] }[]; next: Button[] }
 
 export interface StoreDeps {
+  /** Which account's catalogue cache entries belong to. */
+  cacheScope: string
   run: GraphqlRunner
   shopUrl: string
   storeOrder: string[]
@@ -97,7 +100,9 @@ export async function collectionNamedIn(deps: StoreDeps, text: string): Promise<
  */
 export async function collectionChoices(deps: StoreDeps, text: string): Promise<{ id: string; title: string }[]> {
   const lower = text.toLowerCase()
-  const cols = await fetchAllCollections(deps.run)
+  const cols = await cached(`${deps.cacheScope}:all-collections`, COLLECTIONS_TTL_MS, () =>
+    fetchAllCollections(deps.run),
+  )
 
   let whole: { id: string; title: string } | null = null
   for (const c of cols) {
@@ -154,7 +159,9 @@ async function dispatch(deps: StoreDeps, phone: string, action: Action): Promise
 }
 
 async function menu(deps: StoreDeps): Promise<StoreReply[]> {
-  const cols = await fetchTickedCollections(deps.run, deps.storeOrder)
+  const cols = await cached(`${deps.cacheScope}:ticked:${deps.storeOrder.join(',')}`, COLLECTIONS_TTL_MS, () =>
+    fetchTickedCollections(deps.run, deps.storeOrder),
+  )
   const intro = 'Welcome to the *Shanthi Boutique* shop 🛍️ You can order and pay right here.'
   if (cols.length < 2) {
     return [{
