@@ -86,7 +86,9 @@ export async function fetchTickedCollections(
 export interface StoreProduct extends ProductSellability {
   id: string
   title: string
+  /** Card photo URL (600 px), from the product's featured media. */
   image: string | null
+  featuredMedia?: { preview: { image: { url: string } | null } | null } | null
   priceRangeV2: { minVariantPrice: { amount: string } }
   options: { name: string }[]
   variants: { nodes: (PricedVariant & { id: string; title: string })[] }
@@ -100,6 +102,11 @@ interface ProductConnection {
 /** Keeps only products that can be bought now (sellable and in stock), in Shopify's order. */
 export function pickInStock(nodes: StoreProduct[]): StoreProduct[] {
   return nodes.filter((p) => inStock(p))
+}
+
+/** Adds the photo URL the store cards use. */
+export function withImage(p: StoreProduct): StoreProduct {
+  return { ...p, image: p.image ?? p.featuredMedia?.preview?.image?.url ?? null }
 }
 
 /**
@@ -117,7 +124,7 @@ export async function collectInStock(
     const conn = await fetchPage(cursor)
     if (!conn) break
     for (const e of conn.edges) {
-      const p = e.node as StoreProduct
+      const p = withImage(e.node as StoreProduct)
       if (inStock(p)) products.push(p)
       cursor = e.cursor
       if (products.length >= want) break
