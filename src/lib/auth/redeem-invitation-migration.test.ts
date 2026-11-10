@@ -24,6 +24,8 @@ const tablesWithoutDomainData = new Set([
   "shopify_webhook_events",
   // Send-once claims for the order messages, same as the webhook log above.
   "shopify_order_notification_sends",
+  // Reminder log for abandoned checkouts (migration 066), same treatment.
+  "shopify_cart_reminders",
 ]);
 
 function accountScopedTables(): Set<string> {

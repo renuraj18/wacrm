@@ -42,7 +42,9 @@
     "menuProfile": "Perfil",
     "menuSettings": "Configurações",
     "menuSignOut": "Sair",
-    "products": "Products"
+    "products": "Products",
+    "manualOrders": "Pedidos manuais",
+    "abandonedCheckouts": "Carrinhos abandonados"
   },
   "Header": {
     "dashboard": "Painel",

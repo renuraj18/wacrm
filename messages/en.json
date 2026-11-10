@@ -42,7 +42,9 @@
     "menuProfile": "Profile",
     "menuSettings": "Settings",
     "menuSignOut": "Sign out",
-    "products": "Products"
+    "products": "Products",
+    "manualOrders": "Manual orders",
+    "abandonedCheckouts": "Abandoned checkouts"
   },
   "Header": {
     "dashboard": "Dashboard",

@@ -97,6 +97,8 @@ const navItems: NavItem[] = [
   { href: "/contacts", labelKey: "contacts", icon: Users },
   { href: "/pipelines", labelKey: "pipelines", icon: GitBranch },
   { href: "/products", labelKey: "products", icon: ShoppingBag },
+  { href: "/manual-orders", labelKey: "manualOrders", icon: ShoppingBag },
+  { href: "/abandoned-checkouts", labelKey: "abandonedCheckouts", icon: ShoppingBag },
   { href: "/broadcasts", labelKey: "broadcasts", icon: Radio },
   { href: "/automations", labelKey: "automations", icon: Zap },
   { href: "/flows", labelKey: "flows", icon: Workflow, beta: true },

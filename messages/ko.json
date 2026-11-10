@@ -42,7 +42,9 @@
     "menuProfile": "프로필",
     "menuSettings": "설정",
     "menuSignOut": "로그아웃",
-    "products": "Products"
+    "products": "Products",
+    "manualOrders": "수동 주문",
+    "abandonedCheckouts": "포기된 결제"
   },
   "Header": {
     "dashboard": "대시보드",
