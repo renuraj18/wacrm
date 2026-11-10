@@ -198,14 +198,20 @@ function productCards(
       buttons: [BTN_SHOP, BTN_CART],
     }]
   }
-  const cards = sellers.slice(0, 10).map((p) => ({
+  // One saree per message, each with its photo, price and buttons.
+  const cards: StoreReply[] = sellers.slice(0, 10).map((p) => ({
+    kind: 'image',
     image: p.image ?? '',
     text: `*${cleanTitle(p.title)}*\n${priceLine(p.variants.nodes, p.priceRangeV2.minVariantPrice.amount)}`,
     buttons: [{ id: ids.add(variantIdOf(p)), title: 'Add to cart' }, { id: ids.product(numericId(p.id)), title: 'Details' }],
   }))
   // Only collections page with a collection id; new arrivals and best sellers have no "More" yet.
-  const next = page.next && collectionId ? [{ id: ids.collection(collectionId, page.next), title: 'More sarees ▶' }] : []
-  return [{ kind: 'carousel', text: `*${heading}*`, cards, next: [...next, BTN_CART, BTN_SHOP] }]
+  const more = page.next && collectionId ? [{ id: ids.collection(collectionId, page.next), title: 'More sarees ▶' }] : []
+  return [
+    { kind: 'text', text: `*${heading}*`, buttons: [] },
+    ...cards,
+    { kind: 'text', text: 'Tap Add to cart on any saree, or see more.', buttons: [...more, BTN_CART, BTN_SHOP] },
+  ]
 }
 
 async function productDetails(deps: StoreDeps, productId: string): Promise<StoreReply[]> {
