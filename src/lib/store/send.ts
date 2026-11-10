@@ -30,9 +30,16 @@ async function postMessage(ctx: StoreSendContext, payload: Record<string, unknow
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${ctx.accessToken}` },
     body: JSON.stringify(payload),
   })
-  const json = (await res.json().catch(() => ({}))) as { messages?: { id: string }[]; error?: { message: string; code?: number } }
+  const json = (await res.json().catch(() => ({}))) as {
+    messages?: { id: string }[]
+    error?: { message: string; code?: number; error_data?: { details?: string }; error_user_msg?: string }
+  }
   if (!res.ok || !json.messages?.[0]?.id) {
-    throw new MetaApiError(json.error?.message ?? `Meta returned HTTP ${res.status}`, {
+    // Meta's details field names the parameter that was rejected; keep it in the message.
+    const detail = json.error?.error_data?.details ?? json.error?.error_user_msg ?? ''
+    const message = [json.error?.message ?? `Meta returned HTTP ${res.status}`, detail].filter(Boolean).join(' — ')
+    console.error('[store] Meta rejected a message:', JSON.stringify(json.error ?? {}), 'payload:', JSON.stringify(payload).slice(0, 1500))
+    throw new MetaApiError(message, {
       code: json.error?.code ?? null,
       httpStatus: res.status,
     })
